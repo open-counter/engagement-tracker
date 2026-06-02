@@ -469,7 +469,7 @@ export const EMAILS = [
     institution: 'Swinburne University',
     primaryEmail: 'rulbrick@swin.edu.au',
     recipients: ['rulbrick@swin.edu.au'],
-    summary: 'Rowena Ulbrick confirming Swinburne involvement in the AI Ready Campus webinar. Adobe webinar preparation and planning with Tyronne O'Callaghan and Sanna Eskelinen.',
+    summary: 'Rowena Ulbrick confirming Swinburne involvement in the AI Ready Campus webinar. Adobe webinar preparation and planning with Tyronne O\'Callaghan and Sanna Eskelinen.',
     objective: 'AI Innovation and Leadership',
   },
   {
