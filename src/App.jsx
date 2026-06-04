@@ -207,39 +207,42 @@ function StakeholderForm({ initial, allInsts, onSave, onClose }) {
 function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, compact }) {
   const openActions = (eng.actions||[]).filter(a=>!a.done)
   const isClosed = eng.status==='Closed'
-  return <div style={{ background:C.white,border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${openActions.length?C.red:isClosed?C.light:C.accent}`,marginBottom:8,padding:'14px 16px',opacity:isClosed?0.75:1 }}>
+  // When closed: all colours flatten to grey
+  const tagColor = isClosed ? '#aaa' : null
+  const dotColor = isClosed ? '#ccc' : null
+  return <div style={{ background:isClosed?'#f5f5f5':C.white,border:`0.5px solid ${isClosed?'#ddd':C.border}`,borderLeft:`3px solid ${isClosed?'#ccc':openActions.length?C.red:C.accent}`,marginBottom:8,padding:'14px 16px' }}>
     <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:8 }}>
       <div>
-        {!compact&&<div style={{ fontSize:15,fontWeight:700,color:C.black,fontFamily:FONT }}>{eng.institution}</div>}
-        <div style={{ fontSize:compact?15:13,fontWeight:compact?700:400,color:compact?C.black:C.mid,marginTop:compact?0:2,fontFamily:FONT }}>
+        {!compact&&<div style={{ fontSize:15,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT }}>{eng.institution}</div>}
+        <div style={{ fontSize:compact?15:13,fontWeight:compact?700:400,color:isClosed?'#bbb':compact?C.black:C.mid,marginTop:compact?0:2,fontFamily:FONT }}>
           {eng.stakeholder_name}{stake?.role?<><SEP/>{stake.role}</>:null}{eng.owner?<><SEP/>{eng.owner}</>:null}
         </div>
       </div>
       <div style={{ display:'flex',alignItems:'center',gap:8,flexShrink:0 }}>
-        <span style={{ fontSize:12,fontWeight:700,color:C.mid,fontFamily:FONT }}>{eng.date}</span>
+        <span style={{ fontSize:12,fontWeight:700,color:isClosed?'#bbb':C.mid,fontFamily:FONT }}>{eng.date}</span>
       </div>
     </div>
     <div style={{ display:'flex',gap:5,flexWrap:'wrap',marginBottom:eng.notes||(eng.actions||[]).length?8:0 }}>
-      <Tag color={C.accent}>{eng.type}</Tag>
-      {eng.objective&&<Tag color={OBJ_C[eng.objective]||C.mid}>{eng.objective}</Tag>}
-      <Tag color={STATUS_C[eng.status]||C.mid}>{eng.status}</Tag>
-      {openActions.length>0&&<Tag color={C.red}>{openActions.length} open action{openActions.length!==1?'s':''}</Tag>}
+      <Tag color={tagColor||C.accent}>{eng.type}</Tag>
+      {eng.objective&&<Tag color={tagColor||(OBJ_C[eng.objective]||C.mid)}>{eng.objective}</Tag>}
+      <Tag color={tagColor||(STATUS_C[eng.status]||C.mid)}>{eng.status}</Tag>
+      {openActions.length>0&&<Tag color={tagColor||C.red}>{openActions.length} open action{openActions.length!==1?'s':''}</Tag>}
     </div>
-    {eng.notes&&<div style={{ fontSize:13,color:C.mid,marginBottom:8,lineHeight:1.6,fontFamily:FONT }}>{eng.notes}</div>}
+    {eng.notes&&<div style={{ fontSize:13,color:isClosed?'#bbb':C.mid,marginBottom:8,lineHeight:1.6,fontFamily:FONT }}>{eng.notes}</div>}
     {(eng.actions||[]).length>0&&<div style={{ borderTop:`0.5px solid ${C.borderLight}`,paddingTop:8 }}>
       {(eng.actions||[]).map(a=><div key={a.id} style={{ display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:13,fontFamily:FONT }}>
-        <div style={{ width:7,height:7,borderRadius:'50%',background:PRI_C[a.priority]||C.amber,flexShrink:0 }}/>
-        <span style={{ flex:1,color:a.done?C.light:C.black,textDecoration:a.done?'line-through':'none' }}>{a.text}</span>
-        <Tag color={PRI_C[a.priority]||C.amber}>{a.priority}</Tag>
-        <button
+        <div style={{ width:7,height:7,borderRadius:'50%',background:dotColor||(PRI_C[a.priority]||C.amber),flexShrink:0 }}/>
+        <span style={{ flex:1,color:isClosed||a.done?'#bbb':C.black,textDecoration:a.done?'line-through':'none' }}>{a.text}</span>
+        <Tag color={tagColor||(PRI_C[a.priority]||C.amber)}>{a.priority}</Tag>
+        {!isClosed&&<button
           onClick={()=>onToggleAction(eng.id,a.id)}
           style={{ background:a.done?'#e8f5ee':'transparent',border:`1px solid ${a.done?C.green:C.border}`,padding:'3px 9px',fontSize:11,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,color:a.done?C.green:C.mid,whiteSpace:'nowrap' }}
-        >{a.done?'✓ Done':'Mark done'}</button>
+        >{a.done?'✓ Done':'Mark done'}</button>}
       </div>)}
     </div>}
     <div style={{ display:'flex',justifyContent:'flex-end',gap:14,marginTop:10,paddingTop:10,borderTop:`0.5px solid ${C.borderLight}` }}>
       {!isClosed&&<button onClick={()=>onClose(eng.id)} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,cursor:'pointer',fontFamily:FONT }}>✓ Close</button>}
-      <button onClick={onEdit} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT }}>Edit</button>
+      <button onClick={onEdit} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:isClosed?'#bbb':C.accent,cursor:'pointer',fontFamily:FONT }}>Edit</button>
       <button onClick={onDelete} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,cursor:'pointer',fontFamily:FONT }}>Delete</button>
     </div>
   </div>
@@ -261,6 +264,8 @@ export default function App() {
   const [editStakeId,setEditStakeId] = useState(null)
   const [showEngForm,setShowEngForm]   = useState(false)
   const [showStakeForm,setShowStakeForm] = useState(false)
+  const [stakesOpen,setStakesOpen]       = useState(true)
+  const [engsOpen,setEngsOpen]           = useState(true)
   const [showInstForm,setShowInstForm]   = useState(false)
   const [dragSrc,setDragSrc]             = useState(null)
   const [newInstName,setNewInstName]     = useState('')
@@ -424,6 +429,7 @@ export default function App() {
   )
 
   const filteredInsts=allInsts.filter(n=>n.toLowerCase().includes(instSearch.toLowerCase()))
+  function selectInst(name){setSelInst(name);setShowEngForm(false);setShowStakeForm(false);setStakesOpen(true);setEngsOpen(true)}
   function sortEngs(list){
     return list.slice().sort((a,b)=>{
       const aClosed=a.status==='Closed'?1:0
@@ -562,7 +568,7 @@ export default function App() {
                     setDragSrc(null)
                   }}
                   onDragEnd={()=>setDragSrc(null)}
-                  onClick={()=>{setSelInst(name);setShowEngForm(false);setShowStakeForm(false)}}
+                  onClick={()=>selectInst(name)}
                   style={{ padding:'14px 16px',borderBottom:`0.5px solid ${C.borderLight}`,cursor:'grab',position:'relative',background:selInst===name?'#E6F1FB':C.white,borderLeft:selInst===name?`3px solid ${C.accent}`:'3px solid transparent',opacity:isDragging?0.4:1,transition:'opacity 0.15s' }}
                 >
                   <div style={{ display:'flex',alignItems:'center',gap:8 }}>
@@ -570,7 +576,7 @@ export default function App() {
                     <div style={{ flex:1,minWidth:0 }}>
                       <div style={{ fontSize:14,fontWeight:700,color:selInst===name?'#0C447C':C.black,fontFamily:FONT,paddingRight:50 }}>{name}</div>
                       <div style={{ fontSize:11,fontWeight:300,color:C.light,marginTop:2,fontFamily:FONT,lineHeight:1.6 }}>
-                        {ie.length} engagement{ie.length!==1?'s':''} · {stakes.filter(s=>s.institution===name).length} stakeholder{stakes.filter(s=>s.institution===name).length!==1?'s':''}
+                        {open>0?<span style={{ color:C.red,fontWeight:700 }}>{open} open engagement{open!==1?'s':''}</span>:<span style={{ color:C.green }}>No open engagements</span>}
                       </div>
                     </div>
                   </div>
@@ -630,8 +636,13 @@ export default function App() {
                     )}
                     {/* Stakeholders */}
                     <div style={{ marginBottom:24 }}>
-                      <SectionHead label="Stakeholders" right={<span style={{ fontSize:11,fontWeight:300,color:C.light }}>{instStakes.length}</span>}/>
-                      {instStakes.length?instStakes.map(s=>(
+                      <SectionHead label="Stakeholders" right={
+                        <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                          <span style={{ fontSize:11,fontWeight:300,color:C.light }}>{instStakes.length}</span>
+                          <button onClick={()=>setStakesOpen(v=>!v)} style={{ background:'none',border:'none',fontSize:13,cursor:'pointer',color:C.light,lineHeight:1,padding:0,fontFamily:FONT }}>{stakesOpen?'▲':'▼'}</button>
+                        </div>
+                      }/>
+                      {stakesOpen&&(instStakes.length?instStakes.map(s=>(
                         <div key={s.id} style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:`0.5px solid ${C.borderLight}` }}>
                           <Avatar name={s.name}/>
                           <div style={{ flex:1,minWidth:0 }}>
@@ -643,17 +654,23 @@ export default function App() {
                           </div>
                           <span style={{ fontSize:11,color:C.light,fontFamily:FONT }}>{engs.filter(e=>e.stakeholder_id===s.id).length} eng.</span>
                           <button onClick={()=>{setEditStakeId(s.id);setStakeModal(s)}} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT }}>Edit</button>
+                          <button onClick={()=>{if(window.confirm('Delete this stakeholder?'))deleteStake(s.id)}} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,cursor:'pointer',fontFamily:FONT }}>Delete</button>
                         </div>
-                      )):<div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>None yet — click "+ Stakeholder" above.</div>}
+                      )):<div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>None yet — click "+ Stakeholder" above.</div>)}
                     </div>
                     {/* Engagements */}
-                    <SectionHead label="Engagements" right={<span style={{ fontSize:11,fontWeight:300,color:C.light }}>{instEngs.length}</span>}/>
-                    {instEngs.length?instEngs.map(e=>(
+                    <SectionHead label="Engagements" right={
+                      <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                        <span style={{ fontSize:11,fontWeight:300,color:C.light }}>{instEngs.length}</span>
+                        <button onClick={()=>setEngsOpen(v=>!v)} style={{ background:'none',border:'none',fontSize:13,cursor:'pointer',color:C.light,lineHeight:1,padding:0,fontFamily:FONT }}>{engsOpen?'▲':'▼'}</button>
+                      </div>
+                    }/>
+                    {engsOpen&&(instEngs.length?instEngs.map(e=>(
                       <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)} compact
                         onEdit={()=>{setEditEngId(e.id);setEngModal(e)}}
                         onDelete={()=>{if(window.confirm('Delete?'))deleteEng(e.id)}}
                         onToggleAction={toggleAction} onClose={closeEng}/>
-                    )):<div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>None yet — click "+ Engagement" above.</div>}
+                    )):<div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>None yet — click "+ Engagement" above.</div>)}
                   </div>
                 </>
               )}
