@@ -105,6 +105,11 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   const [newName,setNewName] = useState('')
   const [newRole,setNewRole] = useState('')
   const [tmpStakes,setTmpStakes] = useState([])
+  const [travelNeeded,setTravelNeeded] = useState(initial?.travel_needed||false)
+  const [travelJustification,setTravelJustification] = useState(initial?.travel_justification||'')
+  const [travelCost,setTravelCost] = useState(initial?.travel_cost||'')
+  const [travelStart,setTravelStart] = useState(initial?.travel_start||'')
+  const [travelEnd,setTravelEnd] = useState(initial?.travel_end||'')
 
   const allS = [...stakeholders,...tmpStakes]
   const instS = inst ? allS.filter(s=>s.institution?.toLowerCase()===inst.toLowerCase()) : allS
@@ -121,7 +126,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   function submit() {
     if(!inst.trim()||!stakeId){alert('Institution and stakeholder required.');return}
     const so=allS.find(s=>s.id===stakeId)
-    onSave({ institution:inst.trim(),stakeholder_id:stakeId,stakeholder_name:so?.name||'',date,type,objective:obj,status,owner,notes:notes.trim(),actions:actions.filter(a=>a.text.trim()),_newStakeholders:tmpStakes })
+    onSave({ institution:inst.trim(),stakeholder_id:stakeId,stakeholder_name:so?.name||'',date,type,objective:obj,status,owner,notes:notes.trim(),actions:actions.filter(a=>a.text.trim()),_newStakeholders:tmpStakes,travel_needed:travelNeeded,travel_justification:travelJustification.trim(),travel_cost:travelCost,travel_start:travelStart,travel_end:travelEnd })
   }
 
   return <>
@@ -172,6 +177,23 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
       </div>)}
     </div>
     <button onClick={addAction} style={{ fontSize:12,fontWeight:700,color:C.accent,background:'none',border:'none',cursor:'pointer',letterSpacing:'0.5px',textTransform:'uppercase',fontFamily:FONT,padding:'4px 0' }}>+ Add action</button>
+    <Divider/>
+    <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:travelNeeded?12:0 }}>
+      <FieldLabel>Travel needed?</FieldLabel>
+      <button onClick={()=>setTravelNeeded(v=>!v)} style={{ background:travelNeeded?C.accent:'transparent',border:`1px solid ${travelNeeded?C.accent:C.border}`,color:travelNeeded?C.white:C.mid,padding:'4px 14px',fontSize:11,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,borderRadius:0 }}>{travelNeeded?'Yes — travel needed':'No travel'}</button>
+    </div>
+    {travelNeeded&&<div style={{ background:'#F7F7F5',border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.amber}`,padding:14,marginBottom:12 }}>
+      <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12 }}>
+        <div><FieldLabel>Travel start date</FieldLabel><input type="date" style={{ ...inp,marginBottom:0 }} value={travelStart} onChange={e=>setTravelStart(e.target.value)}/></div>
+        <div><FieldLabel>Travel end date</FieldLabel><input type="date" style={{ ...inp,marginBottom:0 }} value={travelEnd} onChange={e=>setTravelEnd(e.target.value)}/></div>
+      </div>
+      <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12 }}>
+        <div><FieldLabel>Est. cost (USD)</FieldLabel><input type="number" style={{ ...inp,marginBottom:0 }} placeholder="0" value={travelCost} onChange={e=>setTravelCost(e.target.value)}/></div>
+        <div></div>
+      </div>
+      <FieldLabel>Travel justification</FieldLabel>
+      <textarea style={{ ...tex,minHeight:50,marginBottom:0 }} value={travelJustification} onChange={e=>setTravelJustification(e.target.value)} placeholder="Why is travel required?"/>
+    </div>}
     <div style={{ display:'flex',justifyContent:'flex-end',gap:8,marginTop:20,paddingTop:14,borderTop:`0.5px solid ${C.borderLight}` }}>
       <Btn label="Cancel" ghost onClick={onClose}/>
       <Btn label="Save engagement" onClick={submit}/>
