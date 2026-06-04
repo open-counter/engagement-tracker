@@ -216,8 +216,7 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, compac
         </div>
       </div>
       <div style={{ display:'flex',alignItems:'center',gap:8,flexShrink:0 }}>
-        {eng.synced_email_id&&<Tag color={C.amber}>synced</Tag>}
-        <span style={{ fontSize:11,fontWeight:300,color:C.light,fontFamily:FONT }}>{eng.date}</span>
+        <span style={{ fontSize:12,fontWeight:700,color:C.mid,fontFamily:FONT }}>{eng.date}</span>
       </div>
     </div>
     <div style={{ display:'flex',gap:5,flexWrap:'wrap',marginBottom:eng.notes||(eng.actions||[]).length?8:0 }}>
@@ -263,6 +262,7 @@ export default function App() {
   const [showEngForm,setShowEngForm]   = useState(false)
   const [showStakeForm,setShowStakeForm] = useState(false)
   const [showInstForm,setShowInstForm]   = useState(false)
+  const [dragSrc,setDragSrc]             = useState(null)
   const [newInstName,setNewInstName]     = useState('')
   const [instSearch,setInstSearch]       = useState('')
   const [stakeSearch,setStakeSearch]     = useState('')
@@ -424,7 +424,15 @@ export default function App() {
   )
 
   const filteredInsts=allInsts.filter(n=>n.toLowerCase().includes(instSearch.toLowerCase()))
-  const instEngs=selInst?engs.filter(e=>e.institution===selInst).slice().reverse():[]
+  function sortEngs(list){
+    return list.slice().sort((a,b)=>{
+      const aClosed=a.status==='Closed'?1:0
+      const bClosed=b.status==='Closed'?1:0
+      if(aClosed!==bClosed)return aClosed-bClosed
+      return b.date.localeCompare(a.date)
+    })
+  }
+  const instEngs=selInst?sortEngs(engs.filter(e=>e.institution===selInst)):[]
   const instStakes=selInst?stakes.filter(s=>s.institution===selInst):[]
   const instOpenActs=instEngs.flatMap(e=>(e.actions||[]).filter(a=>!a.done).map(a=>({...a,stake:e.stakeholder_name,date:e.date,engId:e.id})))
 
@@ -493,13 +501,13 @@ export default function App() {
                 <select style={{ ...sel,minWidth:140,marginBottom:0,fontSize:13 }} value={fObj} onChange={e=>setFObj(e.target.value)}><option value="">All objectives</option>{OBJECTIVES.map(o=><option key={o}>{o}</option>)}</select>
                 <select style={{ ...sel,minWidth:140,marginBottom:0,fontSize:13 }} value={fStatus} onChange={e=>setFStatus(e.target.value)}><option value="">All statuses</option>{STATUSES.map(s=><option key={s}>{s}</option>)}</select>
               </div>
-              {engs.filter(e=>{
+              {sortEngs(engs.filter(e=>{
                 if(fType&&e.type!==fType)return false
                 if(fObj&&e.objective!==fObj)return false
                 if(fStatus&&e.status!==fStatus)return false
                 if(ovSearch&&![e.institution,e.stakeholder_name,e.notes,e.owner,e.objective].join(' ').toLowerCase().includes(ovSearch.toLowerCase()))return false
                 return true
-              }).map(e=>(
+              })).map(e=>(
                 <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)}
                   onEdit={()=>{setEditEngId(e.id);setEngModal(e)}}
                   onDelete={()=>{if(window.confirm('Delete?'))deleteEng(e.id)}}
@@ -533,10 +541,38 @@ export default function App() {
               {filteredInsts.map(name=>{
                 const ie=engs.filter(e=>e.institution===name)
                 const open=ie.flatMap(e=>e.actions||[]).filter(a=>!a.done).length
-                return <div key={name} onClick={()=>{setSelInst(name);setShowEngForm(false);setShowStakeForm(false)}} style={{ padding:'14px 16px',borderBottom:`0.5px solid ${C.borderLight}`,cursor:'pointer',position:'relative',background:selInst===name?'#E6F1FB':C.white,borderLeft:selInst===name?`3px solid ${C.accent}`:'3px solid transparent' }}>
-                  <div style={{ fontSize:14,fontWeight:700,color:selInst===name?'#0C447C':C.black,fontFamily:FONT,paddingRight:50 }}>{name}</div>
-                  <div style={{ fontSize:11,fontWeight:300,color:C.light,marginTop:2,fontFamily:FONT,lineHeight:1.6 }}>
-                    {ie.length} engagement{ie.length!==1?'s':''} · {stakes.filter(s=>s.institution===name).length} stakeholder{stakes.filter(s=>s.institution===name).length!==1?'s':''}
+                const isDragging=dragSrc===name
+                return <div
+                  key={name}
+                  draggable
+                  onDragStart={e=>{setDragSrc(name);e.dataTransfer.effectAllowed='move'}}
+                  onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='move'}}
+                  onDrop={e=>{
+                    e.preventDefault()
+                    if(!dragSrc||dragSrc===name)return
+                    setInstOrder(prev=>{
+                      const next=[...prev]
+                      const from=next.indexOf(dragSrc)
+                      const to=next.indexOf(name)
+                      if(from<0||to<0)return prev
+                      next.splice(from,1)
+                      next.splice(to,0,dragSrc)
+                      return next
+                    })
+                    setDragSrc(null)
+                  }}
+                  onDragEnd={()=>setDragSrc(null)}
+                  onClick={()=>{setSelInst(name);setShowEngForm(false);setShowStakeForm(false)}}
+                  style={{ padding:'14px 16px',borderBottom:`0.5px solid ${C.borderLight}`,cursor:'grab',position:'relative',background:selInst===name?'#E6F1FB':C.white,borderLeft:selInst===name?`3px solid ${C.accent}`:'3px solid transparent',opacity:isDragging?0.4:1,transition:'opacity 0.15s' }}
+                >
+                  <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                    <span style={{ color:'#ccc',fontSize:14,userSelect:'none',flexShrink:0 }}>⠿</span>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontSize:14,fontWeight:700,color:selInst===name?'#0C447C':C.black,fontFamily:FONT,paddingRight:50 }}>{name}</div>
+                      <div style={{ fontSize:11,fontWeight:300,color:C.light,marginTop:2,fontFamily:FONT,lineHeight:1.6 }}>
+                        {ie.length} engagement{ie.length!==1?'s':''} · {stakes.filter(s=>s.institution===name).length} stakeholder{stakes.filter(s=>s.institution===name).length!==1?'s':''}
+                      </div>
+                    </div>
                   </div>
                   {open>0&&<div style={{ position:'absolute',top:14,right:14,background:C.red,color:C.white,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'2px 7px' }}>{open} open</div>}
                 </div>
