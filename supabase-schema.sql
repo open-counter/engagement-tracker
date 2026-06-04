@@ -45,3 +45,11 @@ alter table et_meta      enable row level security;
 create policy "Allow all" on stakeholders for all using (true) with check (true);
 create policy "Allow all" on engagements  for all using (true) with check (true);
 create policy "Allow all" on et_meta      for all using (true) with check (true);
+
+-- Add travel fields to engagements table (run this if already deployed)
+alter table engagements
+  add column if not exists travel_needed      boolean default false,
+  add column if not exists travel_justification text,
+  add column if not exists travel_cost        numeric,
+  add column if not exists travel_start       date,
+  add column if not exists travel_end         date;
