@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from './supabase.js'
 
 const FONT = "'Helvetica Neue', Helvetica, Arial, sans-serif"
@@ -143,7 +143,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   const [travelEnd,setTravelEnd] = useState(initial?.travel_end??'')
 
   const allS = [...stakeholders,...tmpStakes]
-  const instS = inst ? allS.filter(s=>s.institution?.toLowerCase()===inst.toLowerCase()) : allS
+  const instS = inst ? allS.filter(s=>s.institution?.toLowerCase()===inst.toLowerCase()&&s.name!=='(Add stakeholder)') : allS.filter(s=>s.name!=='(Add stakeholder)')
   const allInsts = [...new Set(stakeholders.map(s=>s.institution).filter(Boolean))].sort()
 
   function addAction() { setActions(a=>[...a,{id:Date.now().toString(),text:'',priority:'Medium',done:false}]) }
@@ -369,8 +369,11 @@ export default function App() {
       ])
       const e=eRows||[],s=sRows||[]
       setEngs(e);setStakes(s)
-      const order=[...new Set(e.map(x=>x.institution).concat(s.map(x=>x.institution)).filter(Boolean))]
-      setInstOrder(order)
+      // Restore saved order from et_meta, filling in any missing institutions
+      const allInstNames=[...new Set(e.map(x=>x.institution).concat(s.map(x=>x.institution)).filter(Boolean))]
+      const savedOrder=mRow?.inst_order||[]
+      const merged=[...savedOrder.filter(n=>allInstNames.includes(n)),...allInstNames.filter(n=>!savedOrder.includes(n))]
+      setInstOrder(merged)
       setLoading(false)
     }
     load()
@@ -502,6 +505,15 @@ export default function App() {
     }else{showToast('No duplicates found')}
   }
 
+  // ── Persist instOrder to Supabase when it changes ───────────────────────────
+  const instOrderRef = React.useRef(instOrder)
+  React.useEffect(()=>{
+    instOrderRef.current=instOrder
+    if(!loading&&instOrder.length>0){
+      supabase.from('et_meta').upsert({id:'singleton',inst_order:instOrder,updated_at:new Date().toISOString()})
+    }
+  },[instOrder,loading])
+
   // ── Derived ──────────────────────────────────────────────────────────────────
   const allInsts=[...new Set([...instOrder,...engs.map(e=>e.institution),...stakes.map(s=>s.institution)].filter(Boolean))]
   const allActs=engs.flatMap(e=>((e.actions&&Array.isArray(e.actions)?e.actions:[])).map(a=>({...a,inst:e.institution,stake:e.stakeholder_name,date:e.date,engId:e.id})))
@@ -569,6 +581,8 @@ export default function App() {
     const name=newInstName.trim()
     if(!name)return
     if(allInsts.includes(name)){showToast('Already exists');return}
+    // Save a placeholder stakeholder so the institution persists in Supabase
+    const saved = await upsertStake({name:'(Add stakeholder)',role:'',institution:name,email:'',notes:'placeholder'})
     setInstOrder(p=>[name,...p]);setNewInstName('');setShowInstForm(false)
     setSelInst(name);showToast(`✓ ${name} added`)
   }
@@ -593,7 +607,7 @@ export default function App() {
     })
   }
   const instEngs=selInst?sortEngs(engs.filter(e=>e.institution===selInst)):[]
-  const instStakes=selInst?stakes.filter(s=>s.institution===selInst):[]
+  const instStakes=selInst?stakes.filter(s=>s.institution===selInst&&s.notes!=='placeholder'):[]
   const instOpenActs=instEngs.flatMap(e=>(e.actions||[]).filter(a=>!a.done).map(a=>({...a,stake:e.stakeholder_name,date:e.date,engId:e.id})))
 
   return(
@@ -665,7 +679,7 @@ export default function App() {
                 if(fType&&e.type!==fType)return false
                 if(fObj&&e.objective!==fObj)return false
                 if(fStatus&&e.status!==fStatus)return false
-                if(ovSearch&&![e.institution,e.stakeholder_name,e.notes,e.owner,e.objective].join(' ').toLowerCase().includes(ovSearch.toLowerCase()))return false
+                if(ovSearch&&![e.institution,e.stakeholder_name,e.notes,e.owner,e.objective,e.event_title||'',e.additional_stakeholders||''].join(' ').toLowerCase().includes(ovSearch.toLowerCase()))return false
                 return true
               })).map(e=>(
                 <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)}
@@ -843,6 +857,7 @@ export default function App() {
               <Btn label="Merge duplicates" small ghost onClick={mergeDuplicates}/>
             </div>
             {stakes.filter(s=>{
+              if(s.notes==='placeholder')return false
               if(stakeInstF&&s.institution!==stakeInstF)return false
               if(stakeRoleF&&s.role!==stakeRoleF)return false
               if(stakeSearch&&![s.name,s.role,s.institution,s.email].join(' ').toLowerCase().includes(stakeSearch.toLowerCase()))return false
@@ -891,13 +906,13 @@ export default function App() {
       const wb=XLSX.utils.book_new(),rows=[]
       engs.forEach(e=>{
         const s=stakes.find(x=>x.id===e.stakeholder_id)
-        const base={Institution:e.institution,Stakeholder:e.stakeholder_name,Role:s?.role||'',Date:e.date,Type:e.type,Objective:e.objective||'',Status:e.status,Owner:e.owner||'',Notes:e.notes||'',Source:e.synced_email_id?'Email sync':'Manual'}
+        const base={'Event Title':e.event_title||'',Institution:e.institution,Stakeholder:e.stakeholder_name,'Additional Stakeholders':e.additional_stakeholders||'',Role:s?.role||'',Date:e.date,Type:e.type,Objective:e.objective||'','Activity Category':e.act_category||'','Engagement Vector':e.eng_vector||'','Activity Format':e.act_format||'','Activity Type':e.act_type||'','Target Audience':e.target_audience||'','Activity Location':e.act_location||'',Status:e.status,Owner:e.owner||'','Travel Needed':e.travel_needed?'Yes':'No','Travel Justification':e.travel_justification||'','Travel Cost':e.travel_cost||'','Travel Start':e.travel_start||'','Travel End':e.travel_end||'',Notes:e.notes||'',Source:e.synced_email_id?'Email sync':'Manual'}
         const acts=e.actions||[]
         if(!acts.length)rows.push({...base,'Action/Next step':'',Priority:'','Action status':''})
         else acts.forEach((a,i)=>rows.push({...(i===0?base:Object.fromEntries(Object.keys(base).map(k=>[k,'']))),'Action/Next step':a.text,Priority:a.priority,'Action status':a.done?'Complete':'Open'}))
       })
       const ws=XLSX.utils.json_to_sheet(rows)
-      ws['!cols']=[22,22,20,12,12,28,16,16,40,10,32,10,12].map(w=>({wch:w}))
+      ws['!cols']=[28,22,22,24,20,12,12,28,32,20,20,16,16,16,12,16,24,10,12,12,40,10,32,10,12].map(w=>({wch:w}))
       XLSX.utils.book_append_sheet(wb,'Engagements',ws)
       const byI={}
       engs.forEach(e=>{
