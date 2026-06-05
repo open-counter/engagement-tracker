@@ -1,5 +1,6 @@
 // api/sharepoint-proxy.js — Vercel serverless function
-// Proxies requests from the browser to Power Automate, bypassing CORS
+
+export const config = { api: { bodyParser: true } }
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -13,29 +14,43 @@ export default async function handler(req, res) {
   if (!flowUrl) return res.status(500).json({ error: 'SHAREPOINT_FLOW_URL not configured' })
 
   try {
-    // Ensure body is a string
-    const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+    // Sanitise the body — convert null numbers to 0, null strings to ''
+    const raw = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+    const record = raw.record || {}
+
+    const sanitised = {
+      ...raw,
+      record: {
+        ...record,
+        travel_cost:  record.travel_cost  != null ? Number(record.travel_cost)  : 0,
+        travel_start: record.travel_start || '',
+        travel_end:   record.travel_end   || '',
+        travel_justification: record.travel_justification || '',
+        travel_needed: record.travel_needed ?? false,
+        notes:        record.notes        || '',
+        objective:    record.objective    || '',
+        owner:        record.owner        || '',
+        contact_email: record.contact_email || '',
+      }
+    }
 
     const response = await fetch(flowUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sanitised),
     })
 
     const text = await response.text()
-    console.log('Power Automate response:', response.status, text)
+    console.log('Flow response:', response.status, text.slice(0, 300))
 
-    // Power Automate returns 202 Accepted on success
     if (response.ok || response.status === 202) {
       return res.status(200).json({ ok: true })
     }
 
-    return res.status(response.status).json({ error: text })
+    return res.status(200).json({ ok: false, flowStatus: response.status, flowBody: text.slice(0, 500) })
+
   } catch (err) {
     console.error('Proxy error:', err)
-    res.status(500).json({ error: err.message })
+    return res.status(500).json({ error: err.message })
   }
 }
