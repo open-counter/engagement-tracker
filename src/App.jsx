@@ -266,6 +266,7 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, compac
       {!isClosed&&<button onClick={()=>onClose(eng.id)} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,cursor:'pointer',fontFamily:FONT }}>✓ Close</button>}
       <button onClick={onEdit} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:isClosed?'#bbb':C.accent,cursor:'pointer',fontFamily:FONT }}>Edit</button>
       <button onClick={onDelete} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,cursor:'pointer',fontFamily:FONT }}>Delete</button>
+      {onSharePoint&&!isClosed&&<button onClick={()=>onSharePoint(eng)} style={{ background:C.black,border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.white,cursor:'pointer',fontFamily:FONT,padding:'4px 10px' }}>→ SharePoint</button>}
     </div>
   </div>
 }
@@ -367,6 +368,52 @@ export default function App() {
       showToast(added>0?`✓ ${added} new engagement${added!==1?'s':''} added`:'✓ Already up to date')
     }catch(err){console.error(err);showToast('Sync failed')}
     finally{setSyncing(false)}
+  }
+
+  // ── SharePoint manual submit ─────────────────────────────────────────────────
+  // Replace the URL below with your Power Automate HTTP POST URL
+  const SHAREPOINT_FLOW_URL = import.meta.env.VITE_SHAREPOINT_FLOW_URL || ''
+
+  async function sendToSharePoint(eng) {
+    if(!SHAREPOINT_FLOW_URL){
+      alert('SharePoint flow URL not configured. Add VITE_SHAREPOINT_FLOW_URL to your environment variables.')
+      return
+    }
+    const stake = stakes.find(s=>s.id===eng.stakeholder_id)
+    try {
+      const res = await fetch(SHAREPOINT_FLOW_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'MANUAL',
+          record: {
+            id:                   eng.id,
+            institution:          eng.institution,
+            stakeholder_name:     eng.stakeholder_name,
+            contact_email:        stake?.email || '',
+            date:                 eng.date,
+            type:                 eng.type,
+            objective:            eng.objective || '',
+            status:               eng.status,
+            owner:                eng.owner || '',
+            notes:                eng.notes || '',
+            travel_needed:        eng.travel_needed || false,
+            travel_justification: eng.travel_justification || '',
+            travel_cost:          eng.travel_cost || '',
+            travel_start:         eng.travel_start || '',
+            travel_end:           eng.travel_end || '',
+          }
+        })
+      })
+      if(res.ok || res.status === 202){
+        showToast('✓ Sent to SharePoint')
+      } else {
+        showToast('SharePoint error — check flow')
+      }
+    } catch(err) {
+      console.error(err)
+      showToast('Failed to reach SharePoint flow')
+    }
   }
 
   // ── Auto-merge duplicate stakeholders ────────────────────────────────────────
@@ -539,7 +586,7 @@ export default function App() {
                 <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)}
                   onEdit={()=>{setEditEngId(e.id);setEngModal(e)}}
                   onDelete={()=>{if(window.confirm('Delete?'))deleteEng(e.id)}}
-                  onToggleAction={toggleAction} onClose={closeEng}/>
+                  onToggleAction={toggleAction} onClose={closeEng} onSharePoint={sendToSharePoint}/>
               ))}
             </div>
           </div>
@@ -691,7 +738,7 @@ export default function App() {
                       <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)} compact
                         onEdit={()=>{setEditEngId(e.id);setEngModal(e)}}
                         onDelete={()=>{if(window.confirm('Delete?'))deleteEng(e.id)}}
-                        onToggleAction={toggleAction} onClose={closeEng}/>
+                        onToggleAction={toggleAction} onClose={closeEng} onSharePoint={sendToSharePoint}/>
                     )):<div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>None yet — click "+ Engagement" above.</div>)}
                   </div>
                 </>
