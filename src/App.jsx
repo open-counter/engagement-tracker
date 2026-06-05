@@ -405,6 +405,7 @@ export default function App() {
           type: 'MANUAL',
           record: {
             id:                   eng.id,
+            event_title:          eng.event_title || '',
             institution:          eng.institution,
             stakeholder_name:     eng.stakeholder_name,
             contact_email:        stake?.email || '',
@@ -414,6 +415,10 @@ export default function App() {
             status:               eng.status,
             owner:                eng.owner || '',
             notes:                eng.notes || '',
+            act_category:         eng.act_category || '',
+            eng_vector:           eng.eng_vector || '',
+            act_format:           eng.act_format || '',
+            act_type:             eng.act_type || '',
             travel_needed:        eng.travel_needed ?? false,
             travel_justification: eng.travel_justification ?? '',
             travel_cost:          eng.travel_cost ?? null,
