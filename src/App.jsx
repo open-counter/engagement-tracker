@@ -350,7 +350,7 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
         </div>
       </div>
       <div style={{ display:'flex',alignItems:'center',gap:8,flexShrink:0 }}>
-        <span style={{ fontSize:12,fontWeight:700,color:isClosed?'#bbb':C.mid,fontFamily:FONT }}>{eng.date}</span>
+        <span style={{ fontSize:16,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT }}>{eng.date}</span>
       </div>
     </div>
     <div style={{ display:'flex',gap:5,flexWrap:'wrap',marginBottom:eng.notes||(eng.actions||[]).length?8:0 }}>
