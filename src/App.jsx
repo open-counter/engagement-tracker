@@ -16,10 +16,12 @@ const OBJECTIVES = ['Awareness','Staff and Student Engagement','AI Innovation an
 const STATUSES   = ['Active','Follow-up needed','On hold','Closed']
 const PRIORITIES = ['High','Medium','Low']
 
-const ACT_CATEGORIES = ['Governance-SBR/QBR/Annual Business Review','Faculty-Staff Webinar','Faculty-Staff Meeting','Faculty Event','Student Webinar','Student On-Campus','Student Competition','Deployment / IT Meeting']
-const ENG_VECTORS    = ['Awareness','Curriculum','Student Life','Career Readiness','Administration']
-const ACT_FORMATS    = ['Virtual','In-Person','Hybrid']
-const ACT_TYPES      = ['Core Product','CSM Local Activity','CSM Student Activity','Faculty Activity','Curriculum Integration','Webinar','Workshop','Meeting','SPVG']
+const ACT_CATEGORIES   = ['Governance-SBR/QBR/Annual Business Review','Faculty-Staff Webinar','Faculty-Staff Meeting','Faculty Event','Student Webinar','Student On-Campus','Student Competition','Deployment / IT Meeting']
+const ENG_VECTORS      = ['Awareness','Curriculum','Student Life','Career Readiness','Administration']
+const ACT_FORMATS      = ['Virtual','In-Person','Hybrid']
+const ACT_TYPES        = ['Core Product','CSM Local Activity','CSM Student Activity','Faculty Activity','Curriculum Integration','Webinar','Workshop','Meeting','SPVG']
+const TARGET_AUDIENCES = ['Educators','Admin Staff','Students','Executive','Faculty']
+const ACT_LOCATIONS    = ['NSW','QLD','VIC','SA','WA','ACT','NT','TAS','SG','MY','PH','ID','TH','NZ','OTHER']
 
 const ROLE_C   = { Executive:C.navy,'Program Leadership':C.purple,Faculty:C.black,'Academic Support':C.accent,'Student Services':C.green,IT:C.amber,Library:C.mid }
 const OBJ_C    = { Awareness:C.accent,'Staff and Student Engagement':C.green,'AI Innovation and Leadership':C.purple,'Curriculum Support':C.amber,'IT/Tech Support':C.black }
@@ -111,7 +113,9 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   const [newRole,setNewRole] = useState('')
   const [tmpStakes,setTmpStakes] = useState([])
   const [eventTitle,setEventTitle]   = useState(initial?.event_title||'')
-  const [actCategory,setActCategory] = useState(initial?.act_category||'')
+  const [actCategory,setActCategory]       = useState(initial?.act_category||'')
+  const [targetAudience,setTargetAudience] = useState(initial?.target_audience||'')
+  const [actLocation,setActLocation]       = useState(initial?.act_location||'')
   const [engVector,setEngVector]     = useState(initial?.eng_vector||'')
   const [actFormat,setActFormat]     = useState(initial?.act_format||'')
   const [actType,setActType]         = useState(initial?.act_type||'')
@@ -136,7 +140,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   function submit() {
     if(!inst.trim()||!stakeId){alert('Institution and stakeholder required.');return}
     const so=allS.find(s=>s.id===stakeId)
-    onSave({ institution:inst.trim(),stakeholder_id:stakeId,stakeholder_name:so?.name||'',date,type,objective:obj,status,owner,event_title:eventTitle.trim(),notes:notes.trim(),actions:actions.filter(a=>a.text.trim()),_newStakeholders:tmpStakes,act_category:actCategory,eng_vector:engVector,act_format:actFormat,act_type:actType,travel_needed:travelNeeded,travel_justification:travelJustification.trim(),travel_cost:travelCost,travel_start:travelStart,travel_end:travelEnd })
+    onSave({ institution:inst.trim(),stakeholder_id:stakeId,stakeholder_name:so?.name||'',date,type,objective:obj,status,owner,event_title:eventTitle.trim(),notes:notes.trim(),actions:actions.filter(a=>a.text.trim()),_newStakeholders:tmpStakes,act_category:actCategory,eng_vector:engVector,act_format:actFormat,act_type:actType,target_audience:targetAudience,act_location:actLocation,travel_needed:travelNeeded,travel_justification:travelJustification.trim(),travel_cost:travelCost,travel_start:travelStart,travel_end:travelEnd })
   }
 
   return <>
@@ -182,6 +186,10 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
     <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12 }}>
       <div><FieldLabel>Activity format</FieldLabel><select style={{...sel,marginBottom:0}} value={actFormat} onChange={e=>setActFormat(e.target.value)}><option value="">— select —</option>{ACT_FORMATS.map(o=><option key={o}>{o}</option>)}</select></div>
       <div><FieldLabel>Activity type</FieldLabel><select style={{...sel,marginBottom:0}} value={actType} onChange={e=>setActType(e.target.value)}><option value="">— select —</option>{ACT_TYPES.map(o=><option key={o}>{o}</option>)}</select></div>
+    </div>
+    <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12 }}>
+      <div><FieldLabel>Target audience</FieldLabel><select style={{...sel,marginBottom:0}} value={targetAudience} onChange={e=>setTargetAudience(e.target.value)}><option value="">— select —</option>{TARGET_AUDIENCES.map(o=><option key={o}>{o}</option>)}</select></div>
+      <div><FieldLabel>Activity location</FieldLabel><select style={{...sel,marginBottom:0}} value={actLocation} onChange={e=>setActLocation(e.target.value)}><option value="">— select —</option>{ACT_LOCATIONS.map(o=><option key={o}>{o}</option>)}</select></div>
     </div>
     <Divider/>
     <FieldLabel>Event title</FieldLabel>
@@ -423,6 +431,8 @@ export default function App() {
             eng_vector:           e.eng_vector || '',
             act_format:           e.act_format || '',
             act_type:             e.act_type || '',
+            target_audience:      e.target_audience || '',
+            act_location:         e.act_location || '',
             travel_needed:        e.travel_needed ?? false,
             travel_justification: e.travel_justification ?? '',
             travel_cost:          e.travel_cost ?? null,
@@ -498,6 +508,8 @@ export default function App() {
       eng_vector:       formData.eng_vector||'',
       act_format:       formData.act_format||'',
       act_type:         formData.act_type||'',
+      target_audience:  formData.target_audience||'',
+      act_location:     formData.act_location||'',
       travel_needed:    formData.travel_needed??false,
       travel_justification: formData.travel_justification||'',
       travel_cost:      formData.travel_cost||null,
