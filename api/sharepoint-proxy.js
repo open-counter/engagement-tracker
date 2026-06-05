@@ -13,12 +13,27 @@ export default async function handler(req, res) {
   if (!flowUrl) return res.status(500).json({ error: 'SHAREPOINT_FLOW_URL not configured' })
 
   try {
+    // Ensure body is a string
+    const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+
     const response = await fetch(flowUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body,
     })
-    res.status(response.status).json({ ok: response.ok, status: response.status })
+
+    const text = await response.text()
+    console.log('Power Automate response:', response.status, text)
+
+    // Power Automate returns 202 Accepted on success
+    if (response.ok || response.status === 202) {
+      return res.status(200).json({ ok: true })
+    }
+
+    return res.status(response.status).json({ error: text })
   } catch (err) {
     console.error('Proxy error:', err)
     res.status(500).json({ error: err.message })
