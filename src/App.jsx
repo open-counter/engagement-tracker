@@ -284,7 +284,7 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
       <div>
         {!compact&&<div style={{ fontSize:15,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:2 }}>{eng.institution}</div>}
         {eng.event_title&&<div style={{ fontSize:16,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:5,lineHeight:1.2 }}>{eng.event_title}</div>}
-        <div style={{ fontSize:12,fontWeight:300,color:isClosed?'#ccc':C.light,marginTop:0,fontFamily:FONT }}>
+        <div style={{ fontSize:13,fontWeight:500,color:isClosed?'#bbb':C.mid,marginTop:0,fontFamily:FONT }}>
           {eng.stakeholder_name}
         </div>
       </div>
@@ -811,7 +811,7 @@ export default function App() {
                       </div>
                     }/>
                     {engsOpen&&(instEngs.length?instEngs.map(e=>(
-                      <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)}
+                      <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)} compact
                         onEdit={()=>{setEditEngId(e.id);setEngModal(e)}}
                         onDelete={()=>{if(window.confirm('Delete?'))deleteEng(e.id)}}
                         onToggleAction={toggleAction} onClose={closeEng} onSharePoint={sendToSharePoint}/>
