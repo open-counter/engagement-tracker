@@ -375,16 +375,10 @@ export default function App() {
 
   // ── SharePoint manual submit ─────────────────────────────────────────────────
   // Replace the URL below with your Power Automate HTTP POST URL
-  const SHAREPOINT_FLOW_URL = import.meta.env.VITE_SHAREPOINT_FLOW_URL || ''
-
   async function sendToSharePoint(eng) {
-    if(!SHAREPOINT_FLOW_URL){
-      alert('SharePoint flow URL not configured. Add VITE_SHAREPOINT_FLOW_URL to your environment variables.')
-      return
-    }
     const stake = stakes.find(s=>s.id===eng.stakeholder_id)
     try {
-      const res = await fetch(SHAREPOINT_FLOW_URL, {
+      const res = await fetch('/api/sharepoint-proxy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
