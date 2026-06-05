@@ -29,7 +29,7 @@ export default async function handler(req, res) {
       status:               record.status || '',
       owner:                record.owner || '',
       notes:                record.notes || '',
-      travel_needed:        record.travel_needed ? 'Yes' : 'No',
+      travel_needed:        record.travel_needed ?? false,
       travel_justification: record.travel_justification || '',
     }
 
