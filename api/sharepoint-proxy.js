@@ -34,6 +34,8 @@ export default async function handler(req, res) {
       eng_vector:           record.eng_vector || '',
       act_format:           record.act_format || '',
       act_type:             record.act_type || '',
+      target_audience:      record.target_audience || '',
+      act_location:         record.act_location || '',
       travel_needed:        record.travel_needed ?? false,
       travel_justification: record.travel_justification || '',
     }
