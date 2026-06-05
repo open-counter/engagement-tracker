@@ -226,7 +226,7 @@ function StakeholderForm({ initial, allInsts, onSave, onClose }) {
 }
 
 // ── Engagement card ───────────────────────────────────────────────────────────
-function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, compact }) {
+function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onSharePoint, compact }) {
   const openActions = (eng.actions||[]).filter(a=>!a.done)
   const isClosed = eng.status==='Closed'
   // When closed: all colours flatten to grey
