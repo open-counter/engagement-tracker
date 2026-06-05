@@ -473,7 +473,28 @@ export default function App() {
     }
     const sid=tmpToReal[formData.stakeholder_id]||formData.stakeholder_id
     const so=[...stakes,...(formData._newStakeholders||[])].find(s=>s.id===formData.stakeholder_id)||stakes.find(s=>s.id===sid)
-    await upsertEng({institution:formData.institution,stakeholder_id:sid,stakeholder_name:so?.name||formData.stakeholder_name,date:formData.date,type:formData.type,objective:formData.objective,status:formData.status,owner:formData.owner,notes:formData.notes,actions:formData.actions},editEngId||undefined)
+    await upsertEng({
+      institution:      formData.institution,
+      stakeholder_id:   sid,
+      stakeholder_name: so?.name||formData.stakeholder_name,
+      date:             formData.date,
+      type:             formData.type,
+      objective:        formData.objective,
+      status:           formData.status,
+      owner:            formData.owner,
+      event_title:      formData.event_title||'',
+      notes:            formData.notes,
+      actions:          formData.actions,
+      act_category:     formData.act_category||'',
+      eng_vector:       formData.eng_vector||'',
+      act_format:       formData.act_format||'',
+      act_type:         formData.act_type||'',
+      travel_needed:    formData.travel_needed??false,
+      travel_justification: formData.travel_justification||'',
+      travel_cost:      formData.travel_cost||null,
+      travel_start:     formData.travel_start||null,
+      travel_end:       formData.travel_end||null,
+    },editEngId||undefined)
     setInstOrder(p=>[...new Set([...p,formData.institution])])
     setEngModal(null);setEditEngId(null)
     showToast(editEngId?'✓ Engagement updated':'✓ Engagement saved')
