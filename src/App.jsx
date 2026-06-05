@@ -267,6 +267,7 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
     <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:8 }}>
       <div>
         {!compact&&<div style={{ fontSize:15,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT }}>{eng.institution}</div>}
+        {eng.event_title&&<div style={{ fontSize:13,fontWeight:700,color:isClosed?'#bbb':C.accent,marginTop:2,fontFamily:FONT }}>{eng.event_title}</div>}
         <div style={{ fontSize:compact?15:13,fontWeight:compact?700:400,color:isClosed?'#bbb':compact?C.black:C.mid,marginTop:compact?0:2,fontFamily:FONT }}>
           {eng.stakeholder_name}{stake?.role?<><SEP/>{stake.role}</>:null}{eng.owner?<><SEP/>{eng.owner}</>:null}
         </div>
