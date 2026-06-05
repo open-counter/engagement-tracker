@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/sharepoint-proxy.js": {
+      "maxDuration": 30
+    }
+  }
+}
