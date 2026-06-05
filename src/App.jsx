@@ -28,6 +28,22 @@ const OBJ_C    = { Awareness:C.accent,'Staff and Student Engagement':C.green,'AI
 const STATUS_C = { Active:C.green,'Follow-up needed':C.amber,'On hold':C.mid,Closed:C.light }
 const PRI_C    = { High:C.red,Medium:C.amber,Low:C.green }
 
+const INST_COLORS = [
+  '#50a0cd','#2c3e50','#8e44ad','#27ae60','#e67e22',
+  '#c0392b','#16a085','#2980b9','#8e6b00','#6c3483',
+  '#1a5276','#117a65','#784212','#1b2631','#0e6655',
+  '#5d6d7e','#7b241c','#1a7a4a','#6e2f8f','#196f3d',
+]
+const instColorCache = {}
+function instColor(name) {
+  if(!instColorCache[name]){
+    let hash=0
+    for(let i=0;i<name.length;i++) hash=(hash<<5)-hash+name.charCodeAt(i)
+    instColorCache[name]=INST_COLORS[Math.abs(hash)%INST_COLORS.length]
+  }
+  return instColorCache[name]
+}
+
 const DOMAIN_MAP = {
   'latrobe.edu.au':'La Trobe University','sa.gov.au':'SA Government — Education',
   'curtin.edu.au':'Curtin University','curtincollege.edu.au':'Curtin University',
@@ -260,16 +276,16 @@ function StakeholderForm({ initial, allInsts, onSave, onClose }) {
 function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onSharePoint, compact }) {
   const openActions = (eng.actions||[]).filter(a=>!a.done)
   const isClosed = eng.status==='Closed'
-  // When closed: all colours flatten to grey
   const tagColor = isClosed ? '#aaa' : null
   const dotColor = isClosed ? '#ccc' : null
-  return <div style={{ background:isClosed?'#f5f5f5':C.white,border:`0.5px solid ${isClosed?'#ddd':C.border}`,borderLeft:`3px solid ${isClosed?'#ccc':openActions.length?C.red:C.accent}`,marginBottom:8,padding:'14px 16px' }}>
+  const accentCol = isClosed?'#ccc':openActions.length?C.red:instColor(eng.institution)
+  return <div style={{ background:isClosed?'#f5f5f5':C.white,border:`0.5px solid ${isClosed?'#ddd':C.border}`,borderLeft:`3px solid ${accentCol}`,marginBottom:8,padding:'14px 16px' }}>
     <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:8 }}>
       <div>
-        {!compact&&<div style={{ fontSize:15,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT }}>{eng.institution}</div>}
-        {eng.event_title&&<div style={{ fontSize:13,fontWeight:700,color:isClosed?'#bbb':C.accent,marginTop:2,fontFamily:FONT }}>{eng.event_title}</div>}
-        <div style={{ fontSize:compact?15:13,fontWeight:compact?700:400,color:isClosed?'#bbb':compact?C.black:C.mid,marginTop:compact?0:2,fontFamily:FONT }}>
-          {eng.stakeholder_name}{stake?.role?<><SEP/>{stake.role}</>:null}{eng.owner?<><SEP/>{eng.owner}</>:null}
+        {!compact&&<div style={{ fontSize:15,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:2 }}>{eng.institution}</div>}
+        {eng.event_title&&<div style={{ fontSize:16,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:5,lineHeight:1.2 }}>{eng.event_title}</div>}
+        <div style={{ fontSize:12,fontWeight:300,color:isClosed?'#ccc':C.light,marginTop:0,fontFamily:FONT }}>
+          {eng.stakeholder_name}
         </div>
       </div>
       <div style={{ display:'flex',alignItems:'center',gap:8,flexShrink:0 }}>
@@ -698,7 +714,7 @@ export default function App() {
                   }}
                   onDragEnd={()=>setDragSrc(null)}
                   onClick={()=>selectInst(name)}
-                  style={{ padding:'14px 16px',borderBottom:`0.5px solid ${C.borderLight}`,cursor:'grab',position:'relative',background:selInst===name?'#E6F1FB':C.white,borderLeft:selInst===name?`3px solid ${C.accent}`:'3px solid transparent',opacity:isDragging?0.4:1,transition:'opacity 0.15s' }}
+                  style={{ padding:'14px 16px',borderBottom:`0.5px solid ${C.borderLight}`,cursor:'grab',position:'relative',background:selInst===name?'#E6F1FB':C.white,borderLeft:`3px solid ${selInst===name?instColor(name):'transparent'}`,opacity:isDragging?0.4:1,transition:'opacity 0.15s' }}
                 >
                   <div style={{ display:'flex',alignItems:'center',gap:8 }}>
                     <span style={{ color:'#ccc',fontSize:14,userSelect:'none',flexShrink:0 }}>⠿</span>
@@ -795,7 +811,7 @@ export default function App() {
                       </div>
                     }/>
                     {engsOpen&&(instEngs.length?instEngs.map(e=>(
-                      <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)} compact
+                      <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)}
                         onEdit={()=>{setEditEngId(e.id);setEngModal(e)}}
                         onDelete={()=>{if(window.confirm('Delete?'))deleteEng(e.id)}}
                         onToggleAction={toggleAction} onClose={closeEng} onSharePoint={sendToSharePoint}/>
