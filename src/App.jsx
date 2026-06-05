@@ -16,6 +16,11 @@ const OBJECTIVES = ['Awareness','Staff and Student Engagement','AI Innovation an
 const STATUSES   = ['Active','Follow-up needed','On hold','Closed']
 const PRIORITIES = ['High','Medium','Low']
 
+const ACT_CATEGORIES = ['Governance-SBR/QBR/Annual Business Review','Faculty-Staff Webinar','Faculty-Staff Meeting','Faculty Event','Student Webinar','Student On-Campus','Student Competition','Deployment / IT Meeting']
+const ENG_VECTORS    = ['Awareness','Curriculum','Student Life','Career Readiness','Administration']
+const ACT_FORMATS    = ['Virtual','In-Person','Hybrid']
+const ACT_TYPES      = ['Core Product','CSM Local Activity','CSM Student Activity','Faculty Activity','Curriculum Integration','Webinar','Workshop','Meeting','SPVG']
+
 const ROLE_C   = { Executive:C.navy,'Program Leadership':C.purple,Faculty:C.black,'Academic Support':C.accent,'Student Services':C.green,IT:C.amber,Library:C.mid }
 const OBJ_C    = { Awareness:C.accent,'Staff and Student Engagement':C.green,'AI Innovation and Leadership':C.purple,'Curriculum Support':C.amber,'IT/Tech Support':C.black }
 const STATUS_C = { Active:C.green,'Follow-up needed':C.amber,'On hold':C.mid,Closed:C.light }
@@ -105,6 +110,11 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   const [newName,setNewName] = useState('')
   const [newRole,setNewRole] = useState('')
   const [tmpStakes,setTmpStakes] = useState([])
+  const [eventTitle,setEventTitle]   = useState(initial?.event_title||'')
+  const [actCategory,setActCategory] = useState(initial?.act_category||'')
+  const [engVector,setEngVector]     = useState(initial?.eng_vector||'')
+  const [actFormat,setActFormat]     = useState(initial?.act_format||'')
+  const [actType,setActType]         = useState(initial?.act_type||'')
   const [travelNeeded,setTravelNeeded] = useState(initial?.travel_needed??false)
   const [travelJustification,setTravelJustification] = useState(initial?.travel_justification??'')
   const [travelCost,setTravelCost] = useState(initial?.travel_cost??'')
@@ -126,7 +136,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   function submit() {
     if(!inst.trim()||!stakeId){alert('Institution and stakeholder required.');return}
     const so=allS.find(s=>s.id===stakeId)
-    onSave({ institution:inst.trim(),stakeholder_id:stakeId,stakeholder_name:so?.name||'',date,type,objective:obj,status,owner,notes:notes.trim(),actions:actions.filter(a=>a.text.trim()),_newStakeholders:tmpStakes,travel_needed:travelNeeded,travel_justification:travelJustification.trim(),travel_cost:travelCost,travel_start:travelStart,travel_end:travelEnd })
+    onSave({ institution:inst.trim(),stakeholder_id:stakeId,stakeholder_name:so?.name||'',date,type,objective:obj,status,owner,event_title:eventTitle.trim(),notes:notes.trim(),actions:actions.filter(a=>a.text.trim()),_newStakeholders:tmpStakes,act_category:actCategory,eng_vector:engVector,act_format:actFormat,act_type:actType,travel_needed:travelNeeded,travel_justification:travelJustification.trim(),travel_cost:travelCost,travel_start:travelStart,travel_end:travelEnd })
   }
 
   return <>
@@ -165,7 +175,17 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
     </div>
     <FieldLabel>Owner / rep</FieldLabel>
     <input style={inp} value={owner} onChange={e=>setOwner(e.target.value)} placeholder="Your name"/>
+    <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12 }}>
+      <div><FieldLabel>Activity category</FieldLabel><select style={{...sel,marginBottom:0}} value={actCategory} onChange={e=>setActCategory(e.target.value)}><option value="">— select —</option>{ACT_CATEGORIES.map(o=><option key={o}>{o}</option>)}</select></div>
+      <div><FieldLabel>Engagement vector</FieldLabel><select style={{...sel,marginBottom:0}} value={engVector} onChange={e=>setEngVector(e.target.value)}><option value="">— select —</option>{ENG_VECTORS.map(o=><option key={o}>{o}</option>)}</select></div>
+    </div>
+    <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12 }}>
+      <div><FieldLabel>Activity format</FieldLabel><select style={{...sel,marginBottom:0}} value={actFormat} onChange={e=>setActFormat(e.target.value)}><option value="">— select —</option>{ACT_FORMATS.map(o=><option key={o}>{o}</option>)}</select></div>
+      <div><FieldLabel>Activity type</FieldLabel><select style={{...sel,marginBottom:0}} value={actType} onChange={e=>setActType(e.target.value)}><option value="">— select —</option>{ACT_TYPES.map(o=><option key={o}>{o}</option>)}</select></div>
+    </div>
     <Divider/>
+    <FieldLabel>Event title</FieldLabel>
+    <input style={inp} value={eventTitle} onChange={e=>setEventTitle(e.target.value)} placeholder="e.g. Curtin University — Meeting — 2026-06-05"/>
     <FieldLabel>Notes / summary</FieldLabel>
     <textarea style={tex} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="What was discussed? Key outcomes?"/>
     <FieldLabel>Next steps / actions</FieldLabel>
@@ -612,7 +632,7 @@ export default function App() {
               </div>
               {filteredInsts.map(name=>{
                 const ie=engs.filter(e=>e.institution===name)
-                const open=ie.flatMap(e=>e.actions||[]).filter(a=>!a.done).length
+                const open=ie.filter(e=>e.status!=='Closed').length
                 const isDragging=dragSrc===name
                 return <div
                   key={name}
