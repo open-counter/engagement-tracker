@@ -643,8 +643,10 @@ function MainApp() {
     showToast(a?.done?'✓ Action complete':'Action reopened')
   }
   async function closeEng(engId){
-    await supabase.from('engagements').update({status:'Closed'}).eq('id',engId)
-    setEngs(p=>p.map(e=>e.id===engId?{...e,status:'Closed'}:e))
+    const eng=engs.find(e=>e.id===engId)
+    const closedActions=(eng?.actions||[]).map(a=>({...a,done:true}))
+    await supabase.from('engagements').update({status:'Closed',actions:closedActions}).eq('id',engId)
+    setEngs(p=>p.map(e=>e.id===engId?{...e,status:'Closed',actions:closedActions}:e))
     showToast('✓ Engagement closed')
   }
   async function addInstitution(){
