@@ -105,11 +105,11 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   const [newName,setNewName] = useState('')
   const [newRole,setNewRole] = useState('')
   const [tmpStakes,setTmpStakes] = useState([])
-  const [travelNeeded,setTravelNeeded] = useState(initial?.travel_needed||false)
-  const [travelJustification,setTravelJustification] = useState(initial?.travel_justification||'')
-  const [travelCost,setTravelCost] = useState(initial?.travel_cost||'')
-  const [travelStart,setTravelStart] = useState(initial?.travel_start||'')
-  const [travelEnd,setTravelEnd] = useState(initial?.travel_end||'')
+  const [travelNeeded,setTravelNeeded] = useState(initial?.travel_needed??false)
+  const [travelJustification,setTravelJustification] = useState(initial?.travel_justification??'')
+  const [travelCost,setTravelCost] = useState(initial?.travel_cost??'')
+  const [travelStart,setTravelStart] = useState(initial?.travel_start??'')
+  const [travelEnd,setTravelEnd] = useState(initial?.travel_end??'')
 
   const allS = [...stakeholders,...tmpStakes]
   const instS = inst ? allS.filter(s=>s.institution?.toLowerCase()===inst.toLowerCase()) : allS
@@ -397,11 +397,11 @@ export default function App() {
             status:               eng.status,
             owner:                eng.owner || '',
             notes:                eng.notes || '',
-            travel_needed:        eng.travel_needed || false,
-            travel_justification: eng.travel_justification || '',
-            travel_cost:          eng.travel_cost || '',
-            travel_start:         eng.travel_start || '',
-            travel_end:           eng.travel_end || '',
+            travel_needed:        eng.travel_needed ?? false,
+            travel_justification: eng.travel_justification ?? '',
+            travel_cost:          eng.travel_cost ?? null,
+            travel_start:         eng.travel_start ?? '',
+            travel_end:           eng.travel_end ?? '',
           }
         })
       })
@@ -443,7 +443,7 @@ export default function App() {
 
   // ── Derived ──────────────────────────────────────────────────────────────────
   const allInsts=[...new Set([...instOrder,...engs.map(e=>e.institution),...stakes.map(s=>s.institution)].filter(Boolean))]
-  const allActs=engs.flatMap(e=>(e.actions||[]).map(a=>({...a,inst:e.institution,stake:e.stakeholder_name,date:e.date,engId:e.id})))
+  const allActs=engs.flatMap(e=>((e.actions&&Array.isArray(e.actions)?e.actions:[])).map(a=>({...a,inst:e.institution,stake:e.stakeholder_name,date:e.date,engId:e.id})))
   const openActs=allActs.filter(a=>!a.done)
 
   // ── Save handlers ─────────────────────────────────────────────────────────────
