@@ -43,6 +43,12 @@ function instColor(name) {
   }
   return instColorCache[name]
 }
+function fmtDate(d){
+  if(!d)return''
+  const parts=d.split('-')
+  if(parts.length<3)return d
+  return parts[2]+'-'+parts[1]
+}
 
 const DOMAIN_MAP = {
   'latrobe.edu.au':'La Trobe University','sa.gov.au':'SA Government — Education',
@@ -337,20 +343,16 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
   const dotColor = isClosed ? '#ccc' : null
   const accentCol = isClosed?'#ccc':openActions.length?C.red:instColor(eng.institution)
   return <div style={{ background:isClosed?'#f5f5f5':C.white,border:`0.5px solid ${isClosed?'#ddd':C.border}`,borderLeft:`3px solid ${accentCol}`,marginBottom:8,padding:'14px 16px' }}>
-    <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:8 }}>
+    <div style={{ display:'flex',alignItems:'flex-start',gap:10,marginBottom:8 }}>
+      <span style={{ fontSize:16,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,flexShrink:0,whiteSpace:'nowrap' }}>{fmtDate(eng.date)}</span>
+      <span style={{ color:isClosed?'#ccc':C.accent,fontSize:16,fontWeight:300,flexShrink:0 }}>|</span>
       <div style={{ flex:1,minWidth:0 }}>
-        {eng.event_title
-          ? <div style={{ fontSize:16,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:4,lineHeight:1.2 }}>{eng.event_title}</div>
-          : null
-        }
-        <div style={{ fontSize:12,fontWeight:400,color:isClosed?'#ccc':C.light,marginBottom:2,fontFamily:FONT }}>
+        {eng.event_title&&<div style={{ fontSize:16,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:3,lineHeight:1.2 }}>{eng.event_title}</div>}
+        <div style={{ fontSize:12,fontWeight:400,color:isClosed?'#ccc':C.light,fontFamily:FONT }}>
           {!compact&&eng.institution&&<><span style={{ fontWeight:500,color:isClosed?'#bbb':C.mid }}>{eng.institution}</span><span style={{ color:C.accent,margin:'0 5px' }}>|</span></>}
           <span style={{ fontWeight:500,color:isClosed?'#bbb':C.mid }}>{eng.stakeholder_name}</span>
           {eng.additional_stakeholders&&<><span style={{ color:C.accent,margin:'0 5px' }}>|</span><span style={{ color:isClosed?'#ccc':C.light }}>{eng.additional_stakeholders}</span></>}
         </div>
-      </div>
-      <div style={{ display:'flex',alignItems:'center',gap:8,flexShrink:0 }}>
-        <span style={{ fontSize:16,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT }}>{eng.date}</span>
       </div>
     </div>
     <div style={{ display:'flex',gap:5,flexWrap:'wrap',marginBottom:eng.notes||(eng.actions||[]).length?8:0 }}>
@@ -382,7 +384,7 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 function MainApp() {
-  const [tab,setTab]               = useState('institutions')
+  const [tab,setTab]               = useState('overview')
   const [engs,setEngs]             = useState([])
   const [stakes,setStakes]         = useState([])
   const [instOrder,setInstOrder]   = useState([])
@@ -396,7 +398,7 @@ function MainApp() {
   const [editStakeId,setEditStakeId] = useState(null)
   const [showEngForm,setShowEngForm]   = useState(false)
   const [showStakeForm,setShowStakeForm] = useState(false)
-  const [stakesOpen,setStakesOpen]       = useState(true)
+  const [stakesOpen,setStakesOpen]       = useState(false)
   const [engsOpen,setEngsOpen]           = useState(true)
   const [showInstForm,setShowInstForm]   = useState(false)
   const [dragSrc,setDragSrc]             = useState(null)
@@ -408,7 +410,8 @@ function MainApp() {
   const [fType,setFType]   = useState('')
   const [fObj,setFObj]     = useState('')
   const [fStatus,setFStatus] = useState('')
-  const [ovSearch,setOvSearch] = useState('')
+  const [ovSearch,setOvSearch]   = useState('')
+  const [showSearch,setShowSearch] = useState(false)
 
   function showToast(msg){setToast(msg);setTimeout(()=>setToast(''),2800)}
 
@@ -571,7 +574,7 @@ function MainApp() {
   // ── Derived ──────────────────────────────────────────────────────────────────
   const allInsts=[...new Set([...instOrder,...engs.map(e=>e.institution),...stakes.map(s=>s.institution)].filter(Boolean))]
   const allActs=engs.flatMap(e=>((e.actions&&Array.isArray(e.actions)?e.actions:[])).map(a=>({...a,inst:e.institution,stake:e.stakeholder_name,date:e.date,engId:e.id})))
-  const openActs=allActs.filter(a=>!a.done)
+  const openActs=allActs.filter(a=>!a.done).sort((a,b)=>a.date.localeCompare(b.date))
 
   // ── Save handlers ─────────────────────────────────────────────────────────────
   async function handleSaveEng(formData){
@@ -657,7 +660,7 @@ function MainApp() {
       const aClosed=a.status==='Closed'?1:0
       const bClosed=b.status==='Closed'?1:0
       if(aClosed!==bClosed)return aClosed-bClosed
-      return b.date.localeCompare(a.date)
+      return a.date.localeCompare(b.date)
     })
   }
   const instEngs=selInst?sortEngs(engs.filter(e=>e.institution===selInst)):[]
@@ -670,14 +673,14 @@ function MainApp() {
       <div style={{ height:4,background:C.accent,position:'fixed',top:0,left:0,right:0,zIndex:300 }}/>
       <div style={{ background:C.black,borderBottom:`4px solid ${C.accent}`,paddingTop:4,position:'fixed',top:0,left:0,right:0,zIndex:200 }}>
         <div style={{ padding:'16px 24px 0' }}>
-          <div style={{ fontSize:24,fontWeight:700,letterSpacing:-0.5,color:C.white,fontFamily:FONT }}>Engagement Tracker</div>
+          <div style={{ fontSize:24,fontWeight:700,letterSpacing:-0.5,color:C.white,fontFamily:FONT }}>Engagement Tracker — Al</div>
           <div style={{ fontSize:11,fontWeight:300,color:'rgba(255,255,255,0.35)',marginTop:4,paddingBottom:12,fontFamily:FONT }}>
             {engs.length} engagement{engs.length!==1?'s':''}<span style={{ color:C.accent }}> | </span>
             {allInsts.length} institution{allInsts.length!==1?'s':''}<span style={{ color:C.accent }}> | </span>
             {stakes.length} stakeholder{stakes.length!==1?'s':''}
           </div>
-          <div style={{ display:'flex' }}>
-            {tabs.map((t,i)=><button key={t.id} onClick={()=>setTab(t.id)} style={{ padding:'10px 0',marginRight:32,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:tab===t.id?C.white:C.accent,background:'transparent',border:'none',borderBottom:tab===t.id?`2px solid ${C.accent}`:'2px solid transparent',marginBottom:-1,cursor:'pointer',fontFamily:FONT }}>{t.label}</button>)}
+          <div style={{ display:'flex',alignItems:'flex-end',width:'100%' }}>
+            {[tabs[0],tabs[1],tabs[2]].map((t,i)=><button key={t.id} onClick={()=>setTab(t.id)} style={{ padding:'10px 0',marginRight:i<1?32:0,marginLeft:i===2?'auto':0,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:tab===t.id?C.white:C.accent,background:'transparent',border:'none',borderBottom:tab===t.id?`2px solid ${C.accent}`:'2px solid transparent',marginBottom:-1,cursor:'pointer',fontFamily:FONT }}>{t.label}</button>)}
           </div>
         </div>
       </div>
@@ -699,7 +702,7 @@ function MainApp() {
                     <div style={{ width:7,height:7,borderRadius:'50%',background:PRI_C[a.priority]||C.amber,marginTop:5,flexShrink:0 }}/>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:13,fontWeight:600,color:C.black,fontFamily:FONT }}>{a.text}</div>
-                      <div style={{ fontSize:11,color:C.light,marginTop:2,fontFamily:FONT }}>{a.inst}<span style={{ color:C.accent }}> · </span>{a.stake}<span style={{ color:C.accent }}> · </span>{a.date}</div>
+                      <div style={{ fontSize:11,color:C.light,marginTop:2,fontFamily:FONT }}>{a.inst}<span style={{ color:C.accent }}> · </span>{a.stake}<span style={{ color:C.accent }}> · </span>{fmtDate(a.date)}</div>
                     </div>
                     <Tag color={PRI_C[a.priority]||C.amber}>{a.priority}</Tag>
                   </div>
@@ -710,7 +713,7 @@ function MainApp() {
             {/* Right — stats + recent */}
             <div style={{ overflowY:'auto',padding:'20px 24px' }}>
               <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:1,background:C.border,border:`0.5px solid ${C.border}`,marginBottom:20 }}>
-                {[{v:engs.length,l:'Engagements',c:C.accent},{v:allInsts.length,l:'Institutions'},{v:openActs.length,l:'Open actions',c:C.red},{v:allActs.filter(a=>a.done).length,l:'Completed'}].map(({v,l,c})=>(
+                {[{v:engs.length,l:'Engagements',c:C.accent},{v:allInsts.length,l:'Institutions'},{v:openActs.length,l:'Open actions',c:C.red},{v:engs.filter(e=>e.status==='Closed').length,l:'Completed'}].map(({v,l,c})=>(
                   <div key={l} style={{ background:C.white,padding:'14px 16px' }}>
                     <div style={{ fontSize:30,fontWeight:700,color:c||C.black,lineHeight:1,fontFamily:FONT }}>{v}</div>
                     <div style={{ fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.light,marginTop:4,fontFamily:FONT }}>{l}</div>
@@ -723,11 +726,17 @@ function MainApp() {
                   <Btn label="↓ Export" small ghost onClick={exportXLSX}/>
                 </div>
               }/>
-              <div style={{ display:'flex',gap:8,marginBottom:14,flexWrap:'wrap' }}>
-                <input style={{ ...inp,flex:1,minWidth:120,marginBottom:0,fontSize:13 }} placeholder="Search…" value={ovSearch} onChange={e=>setOvSearch(e.target.value)}/>
-                <select style={{ ...sel,minWidth:120,marginBottom:0,fontSize:13 }} value={fType} onChange={e=>setFType(e.target.value)}><option value="">All types</option>{TYPES.map(t=><option key={t}>{t}</option>)}</select>
-                <select style={{ ...sel,minWidth:140,marginBottom:0,fontSize:13 }} value={fObj} onChange={e=>setFObj(e.target.value)}><option value="">All objectives</option>{OBJECTIVES.map(o=><option key={o}>{o}</option>)}</select>
-                <select style={{ ...sel,minWidth:140,marginBottom:0,fontSize:13 }} value={fStatus} onChange={e=>setFStatus(e.target.value)}><option value="">All statuses</option>{STATUSES.map(s=><option key={s}>{s}</option>)}</select>
+              <div style={{ marginBottom:10 }}>
+                <button onClick={()=>setShowSearch(v=>!v)} style={{ display:'flex',alignItems:'center',gap:8,background:'none',border:'none',cursor:'pointer',fontFamily:FONT,padding:0,marginBottom:showSearch?10:0 }}>
+                  <span style={{ fontSize:10,fontWeight:700,color:C.accent,letterSpacing:2,textTransform:'uppercase' }}>Search & filter</span>
+                  <span style={{ fontSize:12,color:C.light }}>{showSearch?'▲':'▼'}</span>
+                </button>
+                {showSearch&&<div style={{ display:'flex',gap:8,flexWrap:'wrap' }}>
+                  <input style={{ ...inp,flex:1,minWidth:120,marginBottom:0,fontSize:13 }} placeholder="Search…" value={ovSearch} onChange={e=>setOvSearch(e.target.value)}/>
+                  <select style={{ ...sel,minWidth:120,marginBottom:0,fontSize:13 }} value={fType} onChange={e=>setFType(e.target.value)}><option value="">All types</option>{TYPES.map(t=><option key={t}>{t}</option>)}</select>
+                  <select style={{ ...sel,minWidth:140,marginBottom:0,fontSize:13 }} value={fObj} onChange={e=>setFObj(e.target.value)}><option value="">All objectives</option>{OBJECTIVES.map(o=><option key={o}>{o}</option>)}</select>
+                  <select style={{ ...sel,minWidth:140,marginBottom:0,fontSize:13 }} value={fStatus} onChange={e=>setFStatus(e.target.value)}><option value="">All statuses</option>{STATUSES.map(s=><option key={s}>{s}</option>)}</select>
+                </div>}
               </div>
               {sortEngs(engs.filter(e=>{
                 if(fType&&e.type!==fType)return false
@@ -849,7 +858,7 @@ function MainApp() {
                         {instOpenActs.map((a,i)=>(
                           <div key={i} style={{ display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:`0.5px solid ${C.borderLight}`,fontSize:13,fontFamily:FONT }}>
                             <div style={{ width:7,height:7,borderRadius:'50%',background:PRI_C[a.priority]||C.amber,flexShrink:0 }}/>
-                            <div style={{ flex:1 }}><span style={{ fontWeight:600 }}>{a.text}</span><span style={{ fontSize:11,color:C.light,marginLeft:8 }}>{a.stake} · {a.date}</span></div>
+                            <div style={{ flex:1 }}><span style={{ fontWeight:600 }}>{a.text}</span><span style={{ fontSize:11,color:C.light,marginLeft:8 }}>{a.stake} · {fmtDate(a.date)}</span></div>
                             <Tag color={PRI_C[a.priority]||C.amber}>{a.priority}</Tag>
                             <button onClick={()=>toggleAction(a.engId,a.id)} style={{ background:'transparent',border:`1px solid ${C.border}`,padding:'3px 9px',fontSize:11,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,color:C.mid }}>Mark done</button>
                           </div>
