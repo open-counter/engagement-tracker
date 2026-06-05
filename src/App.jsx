@@ -178,9 +178,12 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
     </div>
     <button onClick={addAction} style={{ fontSize:12,fontWeight:700,color:C.accent,background:'none',border:'none',cursor:'pointer',letterSpacing:'0.5px',textTransform:'uppercase',fontFamily:FONT,padding:'4px 0' }}>+ Add action</button>
     <Divider/>
-    <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:travelNeeded?12:0 }}>
+    <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:travelNeeded?12:4 }}>
       <FieldLabel>Travel needed?</FieldLabel>
-      <button onClick={()=>setTravelNeeded(v=>!v)} style={{ background:travelNeeded?C.accent:'transparent',border:`1px solid ${travelNeeded?C.accent:C.border}`,color:travelNeeded?C.white:C.mid,padding:'4px 14px',fontSize:11,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,borderRadius:0 }}>{travelNeeded?'Yes — travel needed':'No travel'}</button>
+      <div style={{ display:'flex',gap:6 }}>
+        <button onClick={()=>setTravelNeeded(false)} style={{ background:!travelNeeded?C.black:'transparent',border:`1px solid ${!travelNeeded?C.black:C.border}`,color:!travelNeeded?C.white:C.mid,padding:'4px 14px',fontSize:11,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,borderRadius:0 }}>No</button>
+        <button onClick={()=>setTravelNeeded(true)} style={{ background:travelNeeded?C.amber:'transparent',border:`1px solid ${travelNeeded?C.amber:C.border}`,color:travelNeeded?C.white:C.mid,padding:'4px 14px',fontSize:11,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,borderRadius:0 }}>Yes</button>
+      </div>
     </div>
     {travelNeeded&&<div style={{ background:'#F7F7F5',border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.amber}`,padding:14,marginBottom:12 }}>
       <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12 }}>
