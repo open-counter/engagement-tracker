@@ -128,7 +128,8 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   const [newName,setNewName] = useState('')
   const [newRole,setNewRole] = useState('')
   const [tmpStakes,setTmpStakes] = useState([])
-  const [eventTitle,setEventTitle]   = useState(initial?.event_title||'')
+  const [eventTitle,setEventTitle]               = useState(initial?.event_title||'')
+  const [additionalStakeholders,setAddStakes]    = useState(initial?.additional_stakeholders||'')
   const [actCategory,setActCategory]       = useState(initial?.act_category||'')
   const [targetAudience,setTargetAudience] = useState(initial?.target_audience||'')
   const [actLocation,setActLocation]       = useState(initial?.act_location||'')
@@ -156,7 +157,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   function submit() {
     if(!inst.trim()||!stakeId){alert('Institution and stakeholder required.');return}
     const so=allS.find(s=>s.id===stakeId)
-    onSave({ institution:inst.trim(),stakeholder_id:stakeId,stakeholder_name:so?.name||'',date,type,objective:obj,status,owner,event_title:eventTitle.trim(),notes:notes.trim(),actions:actions.filter(a=>a.text.trim()),_newStakeholders:tmpStakes,act_category:actCategory,eng_vector:engVector,act_format:actFormat,act_type:actType,target_audience:targetAudience,act_location:actLocation,travel_needed:travelNeeded,travel_justification:travelJustification.trim(),travel_cost:travelCost,travel_start:travelStart,travel_end:travelEnd })
+    onSave({ institution:inst.trim(),stakeholder_id:stakeId,stakeholder_name:so?.name||'',date,type,objective:obj,status,owner,event_title:eventTitle.trim(),additional_stakeholders:additionalStakeholders.trim(),notes:notes.trim(),actions:actions.filter(a=>a.text.trim()),_newStakeholders:tmpStakes,act_category:actCategory,eng_vector:engVector,act_format:actFormat,act_type:actType,target_audience:targetAudience,act_location:actLocation,travel_needed:travelNeeded,travel_justification:travelJustification.trim(),travel_cost:travelCost,travel_start:travelStart,travel_end:travelEnd })
   }
 
   return <>
@@ -210,6 +211,8 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
     <Divider/>
     <FieldLabel>Event title</FieldLabel>
     <input style={inp} value={eventTitle} onChange={e=>setEventTitle(e.target.value)} placeholder="e.g. Curtin University — Meeting — 2026-06-05"/>
+    <FieldLabel>Additional stakeholders</FieldLabel>
+    <input style={inp} value={additionalStakeholders} onChange={e=>setAddStakes(e.target.value)} placeholder="e.g. Jane Smith, John Doe (separate with commas)"/>
     <FieldLabel>Notes / summary</FieldLabel>
     <textarea style={tex} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="What was discussed? Key outcomes?"/>
     <FieldLabel>Next steps / actions</FieldLabel>
@@ -281,11 +284,15 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
   const accentCol = isClosed?'#ccc':openActions.length?C.red:instColor(eng.institution)
   return <div style={{ background:isClosed?'#f5f5f5':C.white,border:`0.5px solid ${isClosed?'#ddd':C.border}`,borderLeft:`3px solid ${accentCol}`,marginBottom:8,padding:'14px 16px' }}>
     <div style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:8 }}>
-      <div>
-        {!compact&&<div style={{ fontSize:15,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:2 }}>{eng.institution}</div>}
-        {eng.event_title&&<div style={{ fontSize:16,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:5,lineHeight:1.2 }}>{eng.event_title}</div>}
-        <div style={{ fontSize:13,fontWeight:500,color:isClosed?'#bbb':C.mid,marginTop:0,fontFamily:FONT }}>
-          {eng.stakeholder_name}
+      <div style={{ flex:1,minWidth:0 }}>
+        {eng.event_title
+          ? <div style={{ fontSize:16,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:4,lineHeight:1.2 }}>{eng.event_title}</div>
+          : null
+        }
+        <div style={{ fontSize:12,fontWeight:400,color:isClosed?'#ccc':C.light,marginBottom:2,fontFamily:FONT }}>
+          {!compact&&eng.institution&&<><span style={{ fontWeight:500,color:isClosed?'#bbb':C.mid }}>{eng.institution}</span><span style={{ color:C.accent,margin:'0 5px' }}>|</span></>}
+          <span style={{ fontWeight:500,color:isClosed?'#bbb':C.mid }}>{eng.stakeholder_name}</span>
+          {eng.additional_stakeholders&&<><span style={{ color:C.accent,margin:'0 5px' }}>|</span><span style={{ color:isClosed?'#ccc':C.light }}>{eng.additional_stakeholders}</span></>}
         </div>
       </div>
       <div style={{ display:'flex',alignItems:'center',gap:8,flexShrink:0 }}>
@@ -435,6 +442,7 @@ export default function App() {
           record: {
             id:                   e.id,
             event_title:          e.event_title || '',
+            additional_stakeholders: e.additional_stakeholders || '',
             institution:          e.institution,
             stakeholder_name:     e.stakeholder_name,
             contact_email:        stake?.email || '',
@@ -518,7 +526,8 @@ export default function App() {
       objective:        formData.objective,
       status:           formData.status,
       owner:            formData.owner,
-      event_title:      formData.event_title||'',
+      event_title:              formData.event_title||'',
+      additional_stakeholders:  formData.additional_stakeholders||'',
       notes:            formData.notes,
       actions:          formData.actions,
       act_category:     formData.act_category||'',
