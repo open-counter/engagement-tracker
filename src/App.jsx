@@ -31,17 +31,25 @@ const PRI_C    = { High:C.red,Medium:C.amber,Low:C.green }
 const INST_COLORS = [
   '#50a0cd','#2c3e50','#8e44ad','#27ae60','#e67e22',
   '#c0392b','#16a085','#2980b9','#8e6b00','#6c3483',
-  '#1a5276','#117a65','#784212','#1b2631','#0e6655',
-  '#5d6d7e','#7b241c','#1a7a4a','#6e2f8f','#196f3d',
+  '#1a5276','#117a65','#784212','#4a235a','#0e6655',
+  '#5d6d7e','#7b241c','#1a7a4a','#154360','#196f3d',
 ]
-const instColorCache = {}
+// Colour map is loaded from Supabase (et_meta.inst_colors) and kept in module scope
+// so instColor() works in both component and non-component contexts
+let instColorMap = {}
 function instColor(name) {
-  if(!instColorCache[name]){
-    let hash=0
-    for(let i=0;i<name.length;i++) hash=(hash<<5)-hash+name.charCodeAt(i)
-    instColorCache[name]=INST_COLORS[Math.abs(hash)%INST_COLORS.length]
-  }
-  return instColorCache[name]
+  if(!name) return INST_COLORS[0]
+  if(instColorMap[name]) return instColorMap[name]
+  // Fallback: assign by position in current map
+  const idx = Object.keys(instColorMap).length % INST_COLORS.length
+  instColorMap[name] = INST_COLORS[idx]
+  return instColorMap[name]
+}
+function assignColor(name, existingMap) {
+  if(existingMap[name]) return existingMap[name]
+  const usedColors = new Set(Object.values(existingMap))
+  const next = INST_COLORS.find(c=>!usedColors.has(c)) || INST_COLORS[Object.keys(existingMap).length % INST_COLORS.length]
+  return next
 }
 function fmtDate(d){
   if(!d)return''
@@ -431,6 +439,11 @@ function MainApp() {
       const savedOrder=mRow?.inst_order||[]
       const merged=[...savedOrder.filter(n=>allInstNames.includes(n)),...allInstNames.filter(n=>!savedOrder.includes(n))]
       setInstOrder(merged)
+      // Restore saved colour assignments, assign new ones for any missing institutions
+      const savedColors=mRow?.inst_colors||{}
+      const newColorMap={...savedColors}
+      merged.forEach(name=>{ if(!newColorMap[name]) newColorMap[name]=assignColor(name,newColorMap) })
+      instColorMap=newColorMap
       setLoading(false)
     }
     load()
@@ -567,7 +580,7 @@ function MainApp() {
   React.useEffect(()=>{
     instOrderRef.current=instOrder
     if(!loading&&instOrder.length>0){
-      supabase.from('et_meta').upsert({id:'singleton',inst_order:instOrder,updated_at:new Date().toISOString()})
+      supabase.from('et_meta').upsert({id:'singleton',inst_order:instOrder,inst_colors:{...instColorMap},updated_at:new Date().toISOString()})
     }
   },[instOrder,loading])
 
@@ -638,8 +651,13 @@ function MainApp() {
     const name=newInstName.trim()
     if(!name)return
     if(allInsts.includes(name)){showToast('Already exists');return}
-    // Save a placeholder stakeholder so the institution persists in Supabase
-    const saved = await upsertStake({name:'(Add stakeholder)',role:'',institution:name,email:'',notes:'placeholder'})
+    // Assign a colour for the new institution
+    const newColor = assignColor(name, instColorMap)
+    instColorMap = {...instColorMap, [name]: newColor}
+    // Save placeholder stakeholder so institution persists
+    await upsertStake({name:'(Add stakeholder)',role:'',institution:name,email:'',notes:'placeholder'})
+    // Persist updated colour map
+    await supabase.from('et_meta').upsert({id:'singleton',inst_colors:{...instColorMap},updated_at:new Date().toISOString()})
     setInstOrder(p=>[name,...p]);setNewInstName('');setShowInstForm(false)
     setSelInst(name);showToast(`✓ ${name} added`)
   }
@@ -654,7 +672,7 @@ function MainApp() {
   )
 
   const filteredInsts=allInsts.filter(n=>n.toLowerCase().includes(instSearch.toLowerCase()))
-  function selectInst(name){setSelInst(name);setShowEngForm(false);setShowStakeForm(false);setStakesOpen(true);setEngsOpen(true)}
+  function selectInst(name){setSelInst(name);setShowEngForm(false);setShowStakeForm(false);setStakesOpen(false);setEngsOpen(true)}
   function sortEngs(list){
     return list.slice().sort((a,b)=>{
       const aClosed=a.status==='Closed'?1:0
@@ -701,8 +719,12 @@ function MainApp() {
                   <div style={{ display:'flex',alignItems:'flex-start',gap:8 }}>
                     <div style={{ width:7,height:7,borderRadius:'50%',background:PRI_C[a.priority]||C.amber,marginTop:5,flexShrink:0 }}/>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontSize:13,fontWeight:600,color:C.black,fontFamily:FONT }}>{a.text}</div>
-                      <div style={{ fontSize:11,color:C.light,marginTop:2,fontFamily:FONT }}>{a.inst}<span style={{ color:C.accent }}> · </span>{a.stake}<span style={{ color:C.accent }}> · </span>{fmtDate(a.date)}</div>
+                      <div style={{ display:'flex',alignItems:'baseline',gap:0,flexWrap:'wrap',fontFamily:FONT }}>
+                        <span style={{ fontSize:13,fontWeight:600,color:C.black }}>{fmtDate(a.date)}</span>
+                        <span style={{ color:C.accent,fontSize:13,fontWeight:300,margin:'0 6px' }}>|</span>
+                        <span style={{ fontSize:13,fontWeight:600,color:C.black }}>{a.text}</span>
+                      </div>
+                      <div style={{ fontSize:11,color:C.light,marginTop:2,fontFamily:FONT }}>{a.inst}<span style={{ color:C.accent }}> · </span>{a.stake}</div>
                     </div>
                     <Tag color={PRI_C[a.priority]||C.amber}>{a.priority}</Tag>
                   </div>
@@ -856,9 +878,16 @@ function MainApp() {
                       <div style={{ background:C.white,border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.red}`,padding:'14px 16px',marginBottom:20 }}>
                         <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.red,marginBottom:10,fontFamily:FONT }}>Open actions — {instOpenActs.length}</div>
                         {instOpenActs.map((a,i)=>(
-                          <div key={i} style={{ display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:`0.5px solid ${C.borderLight}`,fontSize:13,fontFamily:FONT }}>
-                            <div style={{ width:7,height:7,borderRadius:'50%',background:PRI_C[a.priority]||C.amber,flexShrink:0 }}/>
-                            <div style={{ flex:1 }}><span style={{ fontWeight:600 }}>{a.text}</span><span style={{ fontSize:11,color:C.light,marginLeft:8 }}>{a.stake} · {fmtDate(a.date)}</span></div>
+                          <div key={i} style={{ display:'flex',alignItems:'flex-start',gap:8,padding:'6px 0',borderBottom:`0.5px solid ${C.borderLight}`,fontFamily:FONT }}>
+                            <div style={{ width:7,height:7,borderRadius:'50%',background:PRI_C[a.priority]||C.amber,marginTop:5,flexShrink:0 }}/>
+                            <div style={{ flex:1 }}>
+                              <div style={{ display:'flex',alignItems:'baseline',gap:0,flexWrap:'wrap' }}>
+                                <span style={{ fontSize:13,fontWeight:700,color:C.black }}>{fmtDate(a.date)}</span>
+                                <span style={{ color:C.accent,fontSize:13,fontWeight:300,margin:'0 6px' }}>|</span>
+                                <span style={{ fontSize:13,fontWeight:700,color:C.black }}>{a.text}</span>
+                              </div>
+                              <div style={{ fontSize:11,color:C.light,marginTop:2 }}>{a.stake}</div>
+                            </div>
                             <Tag color={PRI_C[a.priority]||C.amber}>{a.priority}</Tag>
                             <button onClick={()=>toggleAction(a.engId,a.id)} style={{ background:'transparent',border:`1px solid ${C.border}`,padding:'3px 9px',fontSize:11,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,color:C.mid }}>Mark done</button>
                           </div>
