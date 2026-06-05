@@ -381,9 +381,7 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
-export default function App() {
-  const [unlocked,setUnlocked]     = useState(()=>sessionStorage.getItem('et_unlocked')==='1')
-  if(!unlocked) return <PinScreen onUnlock={()=>setUnlocked(true)}/>
+function MainApp() {
   const [tab,setTab]               = useState('institutions')
   const [engs,setEngs]             = useState([])
   const [stakes,setStakes]         = useState([])
@@ -984,4 +982,10 @@ export default function App() {
       XLSX.writeFile(wb,'engagements_export.xlsx')
     })
   }
+}
+
+export default function App() {
+  const [unlocked,setUnlocked] = useState(()=>sessionStorage.getItem('et_unlocked')==='1')
+  if(!unlocked) return <PinScreen onUnlock={()=>setUnlocked(true)}/>
+  return <MainApp/>
 }
