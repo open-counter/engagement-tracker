@@ -396,7 +396,11 @@ export default function App() {
   // ── SharePoint manual submit ─────────────────────────────────────────────────
   // Replace the URL below with your Power Automate HTTP POST URL
   async function sendToSharePoint(eng) {
-    const stake = stakes.find(s=>s.id===eng.stakeholder_id)
+    // Fetch fresh data from Supabase to ensure we have all fields
+    const { data: freshEng } = await supabase.from('engagements').select('*').eq('id', eng.id).single()
+    const e = freshEng || eng
+    console.log('Sending to SharePoint:', JSON.stringify(e, null, 2))
+    const stake = stakes.find(s=>s.id===e.stakeholder_id)
     try {
       const res = await fetch('/api/sharepoint-proxy', {
         method: 'POST',
@@ -404,26 +408,26 @@ export default function App() {
         body: JSON.stringify({
           type: 'MANUAL',
           record: {
-            id:                   eng.id,
-            event_title:          eng.event_title || '',
-            institution:          eng.institution,
-            stakeholder_name:     eng.stakeholder_name,
+            id:                   e.id,
+            event_title:          e.event_title || '',
+            institution:          e.institution,
+            stakeholder_name:     e.stakeholder_name,
             contact_email:        stake?.email || '',
-            date:                 eng.date,
-            type:                 eng.type,
-            objective:            eng.objective || '',
-            status:               eng.status,
-            owner:                eng.owner || '',
-            notes:                eng.notes || '',
-            act_category:         eng.act_category || '',
-            eng_vector:           eng.eng_vector || '',
-            act_format:           eng.act_format || '',
-            act_type:             eng.act_type || '',
-            travel_needed:        eng.travel_needed ?? false,
-            travel_justification: eng.travel_justification ?? '',
-            travel_cost:          eng.travel_cost ?? null,
-            travel_start:         eng.travel_start ?? '',
-            travel_end:           eng.travel_end ?? '',
+            date:                 e.date,
+            type:                 e.type,
+            objective:            e.objective || '',
+            status:               e.status,
+            owner:                e.owner || '',
+            notes:                e.notes || '',
+            act_category:         e.act_category || '',
+            eng_vector:           e.eng_vector || '',
+            act_format:           e.act_format || '',
+            act_type:             e.act_type || '',
+            travel_needed:        e.travel_needed ?? false,
+            travel_justification: e.travel_justification ?? '',
+            travel_cost:          e.travel_cost ?? null,
+            travel_start:         e.travel_start ?? '',
+            travel_end:           e.travel_end ?? '',
           }
         })
       })
