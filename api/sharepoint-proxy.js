@@ -14,30 +14,38 @@ export default async function handler(req, res) {
   if (!flowUrl) return res.status(500).json({ error: 'SHAREPOINT_FLOW_URL not configured' })
 
   try {
-    // Sanitise the body — convert null numbers to 0, null strings to ''
     const raw = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
     const record = raw.record || {}
 
-    const sanitised = {
-      ...raw,
-      record: {
-        ...record,
-        travel_cost:  record.travel_cost  != null ? Number(record.travel_cost)  : 0,
-        travel_start: record.travel_start || '',
-        travel_end:   record.travel_end   || '',
-        travel_justification: record.travel_justification || '',
-        travel_needed: record.travel_needed ?? false,
-        notes:        record.notes        || '',
-        objective:    record.objective    || '',
-        owner:        record.owner        || '',
-        contact_email: record.contact_email || '',
-      }
+    // Build clean record — only include travel date/cost fields if travel is needed
+    const cleanRecord = {
+      id:                   record.id || '',
+      institution:          record.institution || '',
+      stakeholder_name:     record.stakeholder_name || '',
+      contact_email:        record.contact_email || '',
+      date:                 record.date || '',
+      type:                 record.type || '',
+      objective:            record.objective || '',
+      status:               record.status || '',
+      owner:                record.owner || '',
+      notes:                record.notes || '',
+      travel_needed:        record.travel_needed ? 'Yes' : 'No',
+      travel_justification: record.travel_justification || '',
     }
+
+    // Only add date and cost fields if travel is actually needed
+    if (record.travel_needed) {
+      if (record.travel_start) cleanRecord.travel_start = record.travel_start
+      if (record.travel_end)   cleanRecord.travel_end   = record.travel_end
+      if (record.travel_cost)  cleanRecord.travel_cost  = Number(record.travel_cost)
+    }
+
+    const payload = { ...raw, record: cleanRecord }
 
     const response = await fetch(flowUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sanitised),
+      body: JSON.stringify(payload),
     })
 
     const text = await response.text()
