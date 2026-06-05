@@ -20,6 +20,7 @@ export default async function handler(req, res) {
     // Build clean record — only include travel date/cost fields if travel is needed
     const cleanRecord = {
       id:                   record.id || '',
+      event_title:          record.event_title || '',
       institution:          record.institution || '',
       stakeholder_name:     record.stakeholder_name || '',
       contact_email:        record.contact_email || '',
@@ -29,6 +30,10 @@ export default async function handler(req, res) {
       status:               record.status || '',
       owner:                record.owner || '',
       notes:                record.notes || '',
+      act_category:         record.act_category || '',
+      eng_vector:           record.eng_vector || '',
+      act_format:           record.act_format || '',
+      act_type:             record.act_type || '',
       travel_needed:        record.travel_needed ?? false,
       travel_justification: record.travel_justification || '',
     }
