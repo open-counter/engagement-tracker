@@ -391,9 +391,76 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────────
+function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
+  const [form,setForm] = React.useState({
+    parent_name: data.parent_name||'',
+    parent_id:   data.parent_id||'',
+    org_id:      data.org_id||'',
+    domain:      data.domain||'',
+    sub_id:      data.sub_id||'',
+    sub_name:    data.sub_name||'',
+  })
+  React.useEffect(()=>{
+    setForm({
+      parent_name: data.parent_name||'',
+      parent_id:   data.parent_id||'',
+      org_id:      data.org_id||'',
+      domain:      data.domain||'',
+      sub_id:      data.sub_id||'',
+      sub_name:    data.sub_name||'',
+    })
+  },[name])
+
+  const hasData=Object.values(form).some(v=>v.trim())
+  const fields=[
+    {key:'parent_name',label:'Parent Name'},
+    {key:'parent_id',  label:'Parent ID'},
+    {key:'org_id',     label:'Org ID'},
+    {key:'domain',     label:'Domain'},
+    {key:'sub_id',     label:'SUB ID'},
+    {key:'sub_name',   label:'SUB Name'},
+  ]
+
+  return(
+    <div style={{ background:C.white,border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.black}`,padding:'14px 16px',marginBottom:16 }}>
+      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:showEdit||hasData?12:0 }}>
+        <div style={{ fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.mid,fontFamily:FONT }}>Account details</div>
+        <button onClick={onToggleEdit} style={{ background:'none',border:'none',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT }}>{showEdit?'Cancel':'Edit'}</button>
+      </div>
+      {showEdit?(
+        <>
+          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10 }}>
+            {fields.map(f=>(
+              <div key={f.key}>
+                <FieldLabel>{f.label}</FieldLabel>
+                <input style={{ ...inp,marginBottom:0,fontSize:13 }} value={form[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.label}/>
+              </div>
+            ))}
+          </div>
+          <div style={{ display:'flex',justifyContent:'flex-end',gap:8,paddingTop:10,borderTop:`0.5px solid ${C.borderLight}` }}>
+            <Btn label="Save details" small onClick={()=>onSave(form)}/>
+          </div>
+        </>
+      ):hasData?(
+        <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px 16px' }}>
+          {fields.filter(f=>form[f.key]).map(f=>(
+            <div key={f.key} style={{ fontFamily:FONT }}>
+              <div style={{ fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,marginBottom:1 }}>{f.label}</div>
+              <div style={{ fontSize:13,fontWeight:500,color:C.black }}>{form[f.key]}</div>
+            </div>
+          ))}
+        </div>
+      ):(
+        <div style={{ fontSize:12,color:C.light,fontFamily:FONT }}>No account details yet — click Edit to add.</div>
+      )}
+    </div>
+  )
+}
+
 function MainApp() {
   const [tab,setTab]               = useState('overview')
   const [engs,setEngs]             = useState([])
+  const [instData,setInstData]     = useState({}) // keyed by name
   const [stakes,setStakes]         = useState([])
   const [instOrder,setInstOrder]   = useState([])
   const [loading,setLoading]       = useState(true)
@@ -409,6 +476,7 @@ function MainApp() {
   const [stakesOpen,setStakesOpen]       = useState(false)
   const [engsOpen,setEngsOpen]           = useState(true)
   const [showInstForm,setShowInstForm]   = useState(false)
+  const [showInstEdit,setShowInstEdit]   = useState(false)
   const [dragSrc,setDragSrc]             = useState(null)
   const [newInstName,setNewInstName]     = useState('')
   const [instSearch,setInstSearch]       = useState('')
@@ -427,10 +495,11 @@ function MainApp() {
   useEffect(()=>{
     async function load(){
       setLoading(true)
-      const [{data:eRows},{data:sRows},{data:mRow}] = await Promise.all([
+      const [{data:eRows},{data:sRows},{data:mRow},{data:iRows}] = await Promise.all([
         supabase.from('engagements').select('*').order('date',{ascending:false}),
         supabase.from('stakeholders').select('*').order('name'),
         supabase.from('et_meta').select('*').eq('id','singleton').single(),
+        supabase.from('institutions').select('*'),
       ])
       const e=eRows||[],s=sRows||[]
       setEngs(e);setStakes(s)
@@ -439,6 +508,8 @@ function MainApp() {
       const savedOrder=mRow?.inst_order||[]
       const merged=[...savedOrder.filter(n=>allInstNames.includes(n)),...allInstNames.filter(n=>!savedOrder.includes(n))]
       setInstOrder(merged)
+      // Load institution detail data
+      const iMap={};(iRows||[]).forEach(i=>iMap[i.name]=i);setInstData(iMap)
       // Restore saved colour assignments, assign new ones for any missing institutions
       const savedColors=mRow?.inst_colors||{}
       const newColorMap={...savedColors}
@@ -465,6 +536,28 @@ function MainApp() {
     const{data:saved}=await supabase.from('stakeholders').upsert(row).select().single()
     setStakes(p=>id?p.map(s=>s.id===id?saved:s):[...p,saved])
     return saved
+  }
+  async function upsertInst(data){
+    const existing=instData[data.name]
+    const row={...data,updated_at:new Date().toISOString()}
+    if(existing?.id) row.id=existing.id
+    const{data:saved}=await supabase.from('institutions').upsert(row).select().single()
+    if(saved) setInstData(p=>({...p,[data.name]:saved}))
+    return saved
+  }
+  async function deleteInst(name){
+    if(!window.confirm(`Delete ${name} and all its stakeholders and engagements?`))return
+    const existing=instData[name]
+    if(existing?.id) await supabase.from('institutions').delete().eq('id',existing.id)
+    // Delete all engagements and stakeholders for this institution
+    await supabase.from('engagements').delete().eq('institution',name)
+    await supabase.from('stakeholders').delete().eq('institution',name)
+    setEngs(p=>p.filter(e=>e.institution!==name))
+    setStakes(p=>p.filter(s=>s.institution!==name))
+    setInstData(p=>{const n={...p};delete n[name];return n})
+    setInstOrder(p=>p.filter(i=>i!==name))
+    setSelInst(null)
+    showToast(`✓ ${name} deleted`)
   }
   async function deleteStake(id){
     await supabase.from('stakeholders').delete().eq('id',id)
@@ -849,11 +942,16 @@ function MainApp() {
               ):(
                 <>
                   <div style={{ background:C.white,borderBottom:`1px solid ${C.border}`,padding:'20px 24px',position:'sticky',top:0,zIndex:10 }}>
-                    <div style={{ fontSize:24,fontWeight:700,color:C.black,fontFamily:FONT,marginBottom:4 }}>{selInst}</div>
-                    <div style={{ fontSize:12,fontWeight:300,color:C.light,fontFamily:FONT }}>
-                      {instEngs.length} engagement{instEngs.length!==1?'s':''}<SEP/>
-                      {instStakes.length} stakeholder{instStakes.length!==1?'s':''}<SEP/>
-                      <span style={{ color:instOpenActs.length?C.red:C.green,fontWeight:instOpenActs.length?700:300 }}>{instOpenActs.length} open action{instOpenActs.length!==1?'s':''}</span>
+                    <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12 }}>
+                      <div>
+                        <div style={{ fontSize:24,fontWeight:700,color:C.black,fontFamily:FONT,marginBottom:4 }}>{selInst}</div>
+                        <div style={{ fontSize:12,fontWeight:300,color:C.light,fontFamily:FONT }}>
+                          {instEngs.length} engagement{instEngs.length!==1?'s':''}<SEP/>
+                          {instStakes.length} stakeholder{instStakes.length!==1?'s':''}<SEP/>
+                          <span style={{ color:instOpenActs.length?C.red:C.green,fontWeight:instOpenActs.length?700:300 }}>{instOpenActs.length} open action{instOpenActs.length!==1?'s':''}</span>
+                        </div>
+                      </div>
+                      <button onClick={()=>deleteInst(selInst)} style={{ background:'none',border:`1px solid ${C.border}`,padding:'5px 10px',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,cursor:'pointer',fontFamily:FONT,flexShrink:0,marginTop:4 }}>Delete institution</button>
                     </div>
                     <div style={{ display:'flex',gap:8,marginTop:14 }}>
                       <Btn label="+ Engagement" small accent onClick={()=>{setShowEngForm(v=>!v);setShowStakeForm(false)}}/>
@@ -861,6 +959,14 @@ function MainApp() {
                     </div>
                   </div>
                   <div style={{ padding:'20px 24px' }}>
+                    {/* Institution profile */}
+                    <InstProfile
+                      name={selInst}
+                      data={instData[selInst]||{}}
+                      showEdit={showInstEdit}
+                      onToggleEdit={()=>setShowInstEdit(v=>!v)}
+                      onSave={async(d)=>{await upsertInst({...d,name:selInst});setShowInstEdit(false);showToast('✓ Institution details saved')}}
+                    />
                     {/* Inline engagement form */}
                     {showEngForm&&(
                       <div style={{ background:'#F7F7F5',border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.accent}`,padding:16,marginBottom:16 }}>
