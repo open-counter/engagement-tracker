@@ -477,6 +477,8 @@ function MainApp() {
   const [engsOpen,setEngsOpen]           = useState(true)
   const [showInstForm,setShowInstForm]   = useState(false)
   const [showInstEdit,setShowInstEdit]   = useState(false)
+  const [editingInstName,setEditingInstName] = useState(false)
+  const [newInstNameVal,setNewInstNameVal]   = useState('')
   const [dragSrc,setDragSrc]             = useState(null)
   const [newInstName,setNewInstName]     = useState('')
   const [instSearch,setInstSearch]       = useState('')
@@ -558,6 +560,27 @@ function MainApp() {
     setInstOrder(p=>p.filter(i=>i!==name))
     setSelInst(null)
     showToast(`✓ ${name} deleted`)
+  }
+  async function renameInst(oldName, newName){
+    const trimmed = newName.trim()
+    if(!trimmed||trimmed===oldName){setEditingInstName(false);return}
+    if(instOrder.includes(trimmed)){showToast('An institution with that name already exists');return}
+    // Update all engagements and stakeholders
+    await supabase.from('engagements').update({institution:trimmed}).eq('institution',oldName)
+    await supabase.from('stakeholders').update({institution:trimmed}).eq('institution',oldName)
+    // Update institution details record if exists
+    const existing=instData[oldName]
+    if(existing?.id) await supabase.from('institutions').update({name:trimmed}).eq('id',existing.id)
+    // Update colour map
+    if(instColorMap[oldName]){instColorMap[trimmed]=instColorMap[oldName];delete instColorMap[oldName]}
+    // Update local state
+    setEngs(p=>p.map(e=>e.institution===oldName?{...e,institution:trimmed}:e))
+    setStakes(p=>p.map(s=>s.institution===oldName?{...s,institution:trimmed}:s))
+    setInstData(p=>{const n={...p};if(n[oldName]){n[trimmed]={...n[oldName],name:trimmed};delete n[oldName]}return n})
+    setInstOrder(p=>p.map(i=>i===oldName?trimmed:i))
+    setSelInst(trimmed)
+    setEditingInstName(false)
+    showToast(`✓ Renamed to ${trimmed}`)
   }
   async function deleteStake(id){
     await supabase.from('stakeholders').delete().eq('id',id)
@@ -943,8 +966,24 @@ function MainApp() {
                 <>
                   <div style={{ background:C.white,borderBottom:`1px solid ${C.border}`,padding:'20px 24px',position:'sticky',top:0,zIndex:10 }}>
                     <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12 }}>
-                      <div>
-                        <div style={{ fontSize:24,fontWeight:700,color:C.black,fontFamily:FONT,marginBottom:4 }}>{selInst}</div>
+                      <div style={{ flex:1,minWidth:0 }}>
+                        {editingInstName
+                          ? <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:4 }}>
+                              <input
+                                style={{ ...inp,fontSize:20,fontWeight:700,marginBottom:0,flex:1 }}
+                                value={newInstNameVal}
+                                onChange={e=>setNewInstNameVal(e.target.value)}
+                                onKeyDown={e=>{if(e.key==='Enter')renameInst(selInst,newInstNameVal);if(e.key==='Escape')setEditingInstName(false)}}
+                                autoFocus
+                              />
+                              <Btn label="Save" small onClick={()=>renameInst(selInst,newInstNameVal)}/>
+                              <Btn label="Cancel" small ghost onClick={()=>setEditingInstName(false)}/>
+                            </div>
+                          : <div style={{ display:'flex',alignItems:'center',gap:10,marginBottom:4 }}>
+                              <div style={{ fontSize:24,fontWeight:700,color:C.black,fontFamily:FONT }}>{selInst}</div>
+                              <button onClick={()=>{setNewInstNameVal(selInst);setEditingInstName(true)}} style={{ background:'none',border:'none',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT,padding:0 }}>Rename</button>
+                            </div>
+                        }
                         <div style={{ fontSize:12,fontWeight:300,color:C.light,fontFamily:FONT }}>
                           {instEngs.length} engagement{instEngs.length!==1?'s':''}<SEP/>
                           {instStakes.length} stakeholder{instStakes.length!==1?'s':''}<SEP/>
