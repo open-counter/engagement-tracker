@@ -59,14 +59,24 @@ function fmtDate(d){
 }
 
 const DOMAIN_MAP = {
-  'latrobe.edu.au':'La Trobe University','sa.gov.au':'SA Government — Education',
-  'curtin.edu.au':'Curtin University','curtincollege.edu.au':'Curtin University',
-  'guild.uwa.edu.au':'University of Western Australia','uwa.edu.au':'University of Western Australia',
-  'rmit.edu.au':'RMIT University','westernsydney.edu.au':'Western Sydney University',
-  'swin.edu.au':'Swinburne University','torrens.edu.au':'Torrens University & Media Design School',
-  'mediadesignschool.com':'Torrens University & Media Design School',
-  'nmtafe.wa.edu.au':'North Metropolitan TAFE','bond.edu.au':'Bond University',
-  'ecu.edu.au':'Edith Cowan University',
+  'latrobe.edu.au':        'LTU',
+  'sa.gov.au':             'SA Government — Education',
+  'curtin.edu.au':         'Curtin',
+  'curtincollege.edu.au':  'Curtin',
+  'guild.uwa.edu.au':      'UWA',
+  'uwa.edu.au':            'UWA',
+  'rmit.edu.au':           'RMIT',
+  'westernsydney.edu.au':  'WSU',
+  'swin.edu.au':           'Swinburne',
+  'torrens.edu.au':        'Torrens/MDS',
+  'mediadesignschool.com': 'Torrens/MDS',
+  'nmtafe.wa.edu.au':      'NM TAFE',
+  'bond.edu.au':           'Bond',
+  'ecu.edu.au':            'ECU',
+  'deakin.edu.au':         'Deakin',
+  'ite.edu.sg':            'ITE',
+  'aut.ac.nz':             'AUT',
+  'tafe.qld.edu.au':       'TAFE Qld',
 }
 const INTERNAL = ['adobe.com']
 
