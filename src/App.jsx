@@ -368,6 +368,7 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
       {eng.objective&&<Tag color={tagColor||(OBJ_C[eng.objective]||C.mid)}>{eng.objective}</Tag>}
       <Tag color={tagColor||(STATUS_C[eng.status]||C.mid)}>{eng.status}</Tag>
       {openActions.length>0&&<Tag color={tagColor||C.red}>{openActions.length} open action{openActions.length!==1?'s':''}</Tag>}
+      {eng.sharepoint_submitted&&<Tag color={isClosed?'#bbb':'#27ae60'}>✓ In SharePoint</Tag>}
     </div>
     {eng.notes&&<div style={{ fontSize:13,color:isClosed?'#bbb':C.mid,marginBottom:8,lineHeight:1.6,fontFamily:FONT }}>{eng.notes}</div>}
     {(eng.actions||[]).length>0&&<div style={{ borderTop:`0.5px solid ${C.borderLight}`,paddingTop:8 }}>
@@ -385,7 +386,11 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
       {!isClosed&&<button onClick={()=>onClose(eng.id)} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,cursor:'pointer',fontFamily:FONT }}>✓ Close</button>}
       <button onClick={onEdit} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:isClosed?'#bbb':C.accent,cursor:'pointer',fontFamily:FONT }}>Edit</button>
       <button onClick={onDelete} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,cursor:'pointer',fontFamily:FONT }}>Delete</button>
-      {onSharePoint&&!isClosed&&<button onClick={()=>onSharePoint(eng)} style={{ background:C.black,border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.white,cursor:'pointer',fontFamily:FONT,padding:'4px 10px' }}>→ SharePoint</button>}
+      {onSharePoint&&!isClosed&&(
+        eng.sharepoint_submitted
+          ? <button disabled style={{ background:'transparent',border:`1px solid #ccc`,fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:'#bbb',cursor:'not-allowed',fontFamily:FONT,padding:'4px 10px' }}>✓ SharePoint</button>
+          : <button onClick={()=>onSharePoint(eng)} style={{ background:C.black,border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.white,cursor:'pointer',fontFamily:FONT,padding:'4px 10px' }}>→ SharePoint</button>
+      )}
     </div>
   </div>
 }
@@ -655,7 +660,11 @@ function MainApp() {
           }
         })
       })
-      if(res.ok || res.status === 202){
+      const json = await res.json().catch(()=>({}))
+      if(json.ok){
+        // Mark engagement as submitted in Supabase
+        await supabase.from('engagements').update({sharepoint_submitted:true}).eq('id',e.id)
+        setEngs(p=>p.map(x=>x.id===e.id?{...x,sharepoint_submitted:true}:x))
         showToast('✓ Sent to SharePoint')
       } else {
         showToast('SharePoint error — check flow')
@@ -734,6 +743,7 @@ function MainApp() {
       act_type:         formData.act_type||'',
       target_audience:  formData.target_audience||'',
       act_location:     formData.act_location||'',
+      sharepoint_submitted: formData.sharepoint_submitted??false,
       travel_needed:    formData.travel_needed??false,
       travel_justification: formData.travel_justification||'',
       travel_cost:      formData.travel_cost||null,
