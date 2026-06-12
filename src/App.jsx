@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from './supabase.js'
 
 const FONT = "'Helvetica Neue', Helvetica, Arial, sans-serif"
+
+function useWindowWidth() {
+  const [width, setWidth] = React.useState(window.innerWidth)
+  React.useEffect(() => {
+    const handler = () => setWidth(window.innerWidth)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return width
+}
 const C = {
   black: '#000', white: '#FFF', bg: '#F7F7F5',
   accent: '#50a0cd', mid: '#666', light: '#999',
@@ -474,6 +484,8 @@ function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
 
 function MainApp() {
   const [tab,setTab]               = useState('overview')
+  const windowWidth = useWindowWidth()
+  const isMobile = windowWidth < 768
   const [engs,setEngs]             = useState([])
   const [instData,setInstData]     = useState({}) // keyed by name
   const [stakes,setStakes]         = useState([])
@@ -828,8 +840,8 @@ function MainApp() {
       <style>{`*{box-sizing:border-box}input,select,textarea,button{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;border-radius:0!important}body{margin:0}input:focus,select:focus,textarea:focus{outline:none;border-color:${C.accent}!important}`}</style>
       <div style={{ height:4,background:C.accent,position:'fixed',top:0,left:0,right:0,zIndex:300 }}/>
       <div style={{ background:C.black,borderBottom:`4px solid ${C.accent}`,paddingTop:4,position:'fixed',top:0,left:0,right:0,zIndex:200 }}>
-        <div style={{ padding:'16px 24px 0' }}>
-          <div style={{ fontSize:24,fontWeight:700,letterSpacing:-0.5,color:C.white,fontFamily:FONT }}>Engagement Tracker — Al</div>
+        <div style={{ padding:isMobile?'12px 16px 0':'16px 24px 0' }}>
+          <div style={{ fontSize:isMobile?18:24,fontWeight:700,letterSpacing:-0.5,color:C.white,fontFamily:FONT }}>Engagement Tracker — Al</div>
           <div style={{ fontSize:11,fontWeight:300,color:'rgba(255,255,255,0.35)',marginTop:4,paddingBottom:12,fontFamily:FONT }}>
             {engs.length} engagement{engs.length!==1?'s':''}<span style={{ color:C.accent }}> | </span>
             {allInsts.length} institution{allInsts.length!==1?'s':''}<span style={{ color:C.accent }}> | </span>
@@ -841,13 +853,13 @@ function MainApp() {
         </div>
       </div>
 
-      <div style={{ paddingTop:112 }}>
+      <div style={{ paddingTop:isMobile?100:112 }}>
 
         {/* ── OVERVIEW ── */}
         {tab==='overview'&&(
-          <div style={{ display:'grid',gridTemplateColumns:'320px 1fr',height:'calc(100vh - 112px)',overflow:'hidden' }}>
+          <div style={{ display:'grid',gridTemplateColumns:isMobile?'1fr':'320px 1fr',height:isMobile?'auto':'calc(100vh - 112px)',overflow:isMobile?'visible':'hidden' }}>
             {/* Left — open actions */}
-            <div style={{ borderRight:`1px solid ${C.border}`,overflowY:'auto',background:C.white }}>
+            <div style={{ borderRight:isMobile?'none':`1px solid ${C.border}`,borderBottom:isMobile?`1px solid ${C.border}`:'none',overflowY:'auto',background:C.white,maxHeight:isMobile?300:'none' }}>
               <div style={{ padding:'14px 16px',borderBottom:`1px solid ${C.borderLight}`,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:C.white,zIndex:10 }}>
                 <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.accent,fontFamily:FONT }}>Open actions</div>
                 <div style={{ fontSize:11,fontWeight:700,color:C.red }}>{openActs.length} pending</div>
@@ -871,8 +883,8 @@ function MainApp() {
               )):<div style={{ textAlign:'center',padding:'40px 20px',color:C.light,fontSize:13,fontFamily:FONT }}>No open actions</div>}
             </div>
             {/* Right — stats + recent */}
-            <div style={{ overflowY:'auto',padding:'20px 24px' }}>
-              <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:1,background:C.border,border:`0.5px solid ${C.border}`,marginBottom:20 }}>
+            <div style={{ overflowY:'auto',padding:isMobile?'16px':'20px 24px' }}>
+              <div style={{ display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:1,background:C.border,border:`0.5px solid ${C.border}`,marginBottom:20 }}>
                 {[{v:engs.length,l:'Engagements',c:C.accent},{v:allInsts.length,l:'Institutions'},{v:openActs.length,l:'Open actions',c:C.red},{v:engs.filter(e=>e.status==='Closed').length,l:'Completed'}].map(({v,l,c})=>(
                   <div key={l} style={{ background:C.white,padding:'14px 16px' }}>
                     <div style={{ fontSize:30,fontWeight:700,color:c||C.black,lineHeight:1,fontFamily:FONT }}>{v}</div>
@@ -916,9 +928,9 @@ function MainApp() {
 
         {/* ── INSTITUTIONS ── */}
         {tab==='institutions'&&(
-          <div style={{ display:'grid',gridTemplateColumns:'320px 1fr',height:'calc(100vh - 112px)',overflow:'hidden' }}>
+          <div style={{ display:'grid',gridTemplateColumns:isMobile?'1fr':'320px 1fr',height:isMobile?'auto':'calc(100vh - 112px)',overflow:isMobile?'visible':'hidden' }}>
             {/* Left list */}
-            <div style={{ borderRight:`1px solid ${C.border}`,overflowY:'auto',background:C.white }}>
+            <div style={{ borderRight:isMobile?'none':`1px solid ${C.border}`,borderBottom:isMobile?`1px solid ${C.border}`:'none',overflowY:'auto',background:C.white,maxHeight:isMobile?280:'none' }}>
               <div style={{ padding:'14px 16px',borderBottom:`1px solid ${C.borderLight}`,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:C.white,zIndex:10 }}>
                 <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.accent,fontFamily:FONT }}>Institutions</div>
                 <Btn label="+ Add" small accent onClick={()=>setShowInstForm(v=>!v)}/>
@@ -976,7 +988,7 @@ function MainApp() {
               })}
             </div>
             {/* Right detail */}
-            <div style={{ overflowY:'auto',background:C.bg }}>
+            <div style={{ overflowY:isMobile?'visible':'auto',background:C.bg }}>
               {!selInst?(
                 <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:C.light,fontSize:14,fontWeight:300,gap:8,fontFamily:FONT }}>
                   <div style={{ fontSize:40,color:'#ddd' }}>⌗</div>
@@ -1107,7 +1119,7 @@ function MainApp() {
 
         {/* ── STAKEHOLDERS ── */}
         {tab==='stakeholders'&&(
-          <div style={{ padding:'20px 24px',maxWidth:960 }}>
+          <div style={{ padding:isMobile?'16px':'20px 24px',maxWidth:960 }}>
             <div style={{ display:'flex',gap:8,marginBottom:14,flexWrap:'wrap',alignItems:'center' }}>
               <input style={{ ...inp,flex:1,marginBottom:0,fontSize:13 }} placeholder="Search stakeholders…" value={stakeSearch} onChange={e=>setStakeSearch(e.target.value)}/>
               <select style={{ ...sel,minWidth:180,marginBottom:0,fontSize:13 }} value={stakeInstF} onChange={e=>setStakeInstF(e.target.value)}><option value="">All institutions</option>{allInsts.map(n=><option key={n}>{n}</option>)}</select>
