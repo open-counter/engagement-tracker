@@ -25,14 +25,12 @@ const TYPES      = ['Meeting','Call','Email','Conference','Demo','Workshop','Oth
 const OBJECTIVES = ['Awareness','Staff and Student Engagement','AI Innovation and Leadership','Curriculum Support','IT/Tech Support']
 const STATUSES   = ['Active','Follow-up needed','On hold','Closed']
 const PRIORITIES = ['High','Medium','Low']
-
 const ACT_CATEGORIES   = ['Governance-SBR/QBR/Annual Business Review','Faculty-Staff Webinar','Faculty-Staff Meeting','Faculty Event','Student Webinar','Student On-Campus','Student Competition','Deployment / IT Meeting']
 const ENG_VECTORS      = ['Awareness','Curriculum','Student Life','Career Readiness','Administration']
 const ACT_FORMATS      = ['Virtual','In-Person','Hybrid']
 const ACT_TYPES        = ['Core Product','CSM Local Activity','CSM Student Activity','Faculty Activity','Curriculum Integration','Webinar','Workshop','Meeting','SPVG']
 const TARGET_AUDIENCES = ['Educators','Admin Staff','Students','Executive','Faculty']
 const ACT_LOCATIONS    = ['NSW','QLD','VIC','SA','WA','ACT','NT','TAS','SG','MY','PH','ID','TH','NZ','OTHER']
-
 const ROLE_C   = { Executive:C.navy,'Program Leadership':C.purple,Faculty:C.black,'Academic Support':C.accent,'Student Services':C.green,IT:C.amber,Library:C.mid }
 const OBJ_C    = { Awareness:C.accent,'Staff and Student Engagement':C.green,'AI Innovation and Leadership':C.purple,'Curriculum Support':C.amber,'IT/Tech Support':C.black }
 const STATUS_C = { Active:C.green,'Follow-up needed':C.amber,'On hold':C.mid,Closed:C.light }
@@ -44,13 +42,10 @@ const INST_COLORS = [
   '#1a5276','#117a65','#784212','#4a235a','#0e6655',
   '#5d6d7e','#7b241c','#1a7a4a','#154360','#196f3d',
 ]
-// Colour map is loaded from Supabase (et_meta.inst_colors) and kept in module scope
-// so instColor() works in both component and non-component contexts
 let instColorMap = {}
 function instColor(name) {
   if(!name) return INST_COLORS[0]
   if(instColorMap[name]) return instColorMap[name]
-  // Fallback: assign by position in current map
   const idx = Object.keys(instColorMap).length % INST_COLORS.length
   instColorMap[name] = INST_COLORS[idx]
   return instColorMap[name]
@@ -67,42 +62,36 @@ function fmtDate(d){
   if(parts.length<3)return d
   return parts[2]+'-'+parts[1]
 }
+function isOverdue(dateStr){
+  if(!dateStr)return false
+  const d=new Date(dateStr)
+  const now=new Date()
+  return (now-d)/(1000*60*60*24)>14
+}
 
 const DOMAIN_MAP = {
-  'latrobe.edu.au':        'LTU',
-  'sa.gov.au':             'SA Government — Education',
-  'curtin.edu.au':         'Curtin',
-  'curtincollege.edu.au':  'Curtin',
-  'guild.uwa.edu.au':      'UWA',
-  'uwa.edu.au':            'UWA',
-  'rmit.edu.au':           'RMIT',
-  'westernsydney.edu.au':  'WSU',
-  'swin.edu.au':           'Swinburne',
-  'torrens.edu.au':        'Torrens/MDS',
-  'mediadesignschool.com': 'Torrens/MDS',
-  'nmtafe.wa.edu.au':      'NM TAFE',
-  'bond.edu.au':           'Bond',
-  'ecu.edu.au':            'ECU',
-  'deakin.edu.au':         'Deakin',
-  'ite.edu.sg':            'ITE',
-  'aut.ac.nz':             'AUT',
-  'tafe.qld.edu.au':       'TAFE Qld',
+  'latrobe.edu.au':'LTU','sa.gov.au':'SA Government — Education',
+  'curtin.edu.au':'Curtin','curtincollege.edu.au':'Curtin',
+  'guild.uwa.edu.au':'UWA','uwa.edu.au':'UWA',
+  'rmit.edu.au':'RMIT','westernsydney.edu.au':'WSU',
+  'swin.edu.au':'Swinburne','torrens.edu.au':'Torrens/MDS',
+  'mediadesignschool.com':'Torrens/MDS','nmtafe.wa.edu.au':'NM TAFE',
+  'bond.edu.au':'Bond','ecu.edu.au':'ECU','deakin.edu.au':'Deakin',
+  'ite.edu.sg':'ITE','aut.ac.nz':'AUT','tafe.qld.edu.au':'TAFE Qld',
 }
 const INTERNAL = ['adobe.com']
-
 function getDomain(email) { return (email||'').split('@')[1]?.toLowerCase()||'' }
 function isInternal(email) { const d=getDomain(email); return INTERNAL.some(i=>d===i||d.endsWith('.'+i)) }
 function getInstitution(email) { const d=getDomain(email); for(const[k,v]of Object.entries(DOMAIN_MAP)){if(d===k||d.endsWith('.'+k))return v} return null }
 function guessObjective(subject) {
   const s=(subject||'').toLowerCase()
   if(s.includes('ai ')||s.includes('innovation')||s.includes('grad benefit'))return'AI Innovation and Leadership'
-  if(s.includes('curriculum')||s.includes('brand kit')||s.includes('express')||s.includes('storytelling'))return'Curriculum Support'
-  if(s.includes('pdf')||s.includes('pilot')||s.includes('portal')||s.includes('licensing')||s.includes('migration'))return'IT/Tech Support'
-  if(s.includes('webinar')||s.includes('training')||s.includes('café')||s.includes('o-day')||s.includes('presentation'))return'Staff and Student Engagement'
+  if(s.includes('curriculum')||s.includes('brand kit')||s.includes('express'))return'Curriculum Support'
+  if(s.includes('pdf')||s.includes('pilot')||s.includes('licensing')||s.includes('migration'))return'IT/Tech Support'
+  if(s.includes('webinar')||s.includes('training')||s.includes('presentation'))return'Staff and Student Engagement'
   return 'Awareness'
 }
 
-// ── Style helpers ─────────────────────────────────────────────────────────────
 const inp = { width:'100%',padding:'10px 12px',border:`1px solid ${C.border}`,fontSize:14,fontFamily:FONT,background:C.white,color:C.black,outline:'none',borderRadius:0,display:'block',marginBottom:10 }
 const sel = { ...inp,appearance:'none',WebkitAppearance:'none',cursor:'pointer' }
 const tex = { ...inp,resize:'vertical',minHeight:70,lineHeight:1.5 }
@@ -146,31 +135,19 @@ function PinScreen({ onUnlock }) {
   const [pin,setPin] = React.useState('')
   const [error,setError] = React.useState(false)
   const [shake,setShake] = React.useState(false)
-
   function handleKey(k){
     if(pin.length>=6)return
     const next=pin+k
     setPin(next);setError(false)
-    if(next.length===4||next.length===5||next.length===6){
-      // Try immediately at 4, 5 and 6 digits
-      checkPin(next)
-    }
+    if(next.length===4||next.length===5||next.length===6) checkPin(next)
   }
   function checkPin(val){
     const correct=import.meta.env.VITE_APP_PIN||'1234'
-    if(val===correct){
-      sessionStorage.setItem('et_unlocked','1')
-      onUnlock()
-    } else if(val.length>=correct.length){
-      setShake(true);setError(true);setPin('')
-      setTimeout(()=>setShake(false),500)
-    }
+    if(val===correct){ sessionStorage.setItem('et_unlocked','1'); onUnlock() }
+    else if(val.length>=correct.length){ setShake(true);setError(true);setPin(''); setTimeout(()=>setShake(false),500) }
   }
   function del(){setPin(p=>p.slice(0,-1));setError(false)}
-
-  const dots=Array.from({length:6}).map((_,i)=>i)
   const pinLen=(import.meta.env.VITE_APP_PIN||'1234').length
-
   return(
     <div style={{ minHeight:'100vh',background:C.black,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:FONT }}>
       <div style={{ height:4,background:C.accent,position:'fixed',top:0,left:0,right:0 }}/>
@@ -178,7 +155,7 @@ function PinScreen({ onUnlock }) {
       <div style={{ fontSize:11,fontWeight:300,color:'rgba(255,255,255,0.3)',letterSpacing:2,textTransform:'uppercase',marginBottom:40 }}>Enter PIN to continue</div>
       <div style={{ display:'flex',gap:14,marginBottom:32,transform:shake?'translateX(-8px)':'none',transition:'transform 0.1s' }}>
         {Array.from({length:pinLen}).map((_,i)=>(
-          <div key={i} style={{ width:12,height:12,borderRadius:'50%',background:pin.length>i?(error?C.red:C.accent):'transparent',border:`2px solid ${pin.length>i?(error?C.red:C.accent):'rgba(255,255,255,0.3)'}`,transition:'background 0.15s,border-color 0.15s' }}/>
+          <div key={i} style={{ width:12,height:12,borderRadius:'50%',background:pin.length>i?(error?C.red:C.accent):'transparent',border:`2px solid ${pin.length>i?(error?C.red:C.accent):'rgba(255,255,255,0.3)'}`,transition:'background 0.15s' }}/>
         ))}
       </div>
       {error&&<div style={{ fontSize:11,fontWeight:700,color:C.red,letterSpacing:1,textTransform:'uppercase',marginBottom:20 }}>Incorrect PIN</div>}
@@ -186,7 +163,7 @@ function PinScreen({ onUnlock }) {
         {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((k,i)=>(
           k===''?<div key={i}/>:
           <button key={i} onClick={()=>k==='⌫'?del():handleKey(String(k))}
-            style={{ width:72,height:72,borderRadius:'50%',background:k==='⌫'?'transparent':'rgba(255,255,255,0.07)',border:`1px solid ${k==='⌫'?'transparent':'rgba(255,255,255,0.12)'}`,color:C.white,fontSize:k==='⌫'?20:22,fontWeight:k==='⌫'?400:300,cursor:'pointer',fontFamily:FONT,display:'flex',alignItems:'center',justifyContent:'center',transition:'background 0.1s' }}
+            style={{ width:72,height:72,borderRadius:'50%',background:k==='⌫'?'transparent':'rgba(255,255,255,0.07)',border:`1px solid ${k==='⌫'?'transparent':'rgba(255,255,255,0.12)'}`,color:C.white,fontSize:k==='⌫'?20:22,fontWeight:k==='⌫'?400:300,cursor:'pointer',fontFamily:FONT,display:'flex',alignItems:'center',justifyContent:'center' }}
             onMouseOver={e=>e.currentTarget.style.background=k==='⌫'?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.15)'}
             onMouseOut={e=>e.currentTarget.style.background=k==='⌫'?'transparent':'rgba(255,255,255,0.07)'}
           >{k}</button>
@@ -195,13 +172,12 @@ function PinScreen({ onUnlock }) {
     </div>
   )
 }
-
 function Avatar({ name, size=32 }) {
   const ini=(name||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()
   return <div style={{ width:size,height:size,borderRadius:'50%',background:'#e8f4fb',display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*0.34,fontWeight:700,color:C.accent,flexShrink:0,fontFamily:FONT }}>{ini}</div>
 }
 
-// ── Engagement form ───────────────────────────────────────────────────────────
+// ── Engagement form ─────────────────────────────────────────────────────────
 function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   const [inst,setInst]       = useState(initial?.institution||'')
   const [stakeId,setStakeId] = useState(initial?.stakeholder_id||'')
@@ -216,19 +192,19 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   const [newName,setNewName] = useState('')
   const [newRole,setNewRole] = useState('')
   const [tmpStakes,setTmpStakes] = useState([])
-  const [eventTitle,setEventTitle]               = useState(initial?.event_title||'')
-  const [additionalStakeholders,setAddStakes]    = useState(initial?.additional_stakeholders||'')
-  const [actCategory,setActCategory]       = useState(initial?.act_category||'')
+  const [eventTitle,setEventTitle]            = useState(initial?.event_title||'')
+  const [additionalStakeholders,setAddStakes] = useState(initial?.additional_stakeholders||'')
+  const [actCategory,setActCategory]   = useState(initial?.act_category||'')
   const [targetAudience,setTargetAudience] = useState(initial?.target_audience||'')
-  const [actLocation,setActLocation]       = useState(initial?.act_location||'')
-  const [engVector,setEngVector]     = useState(initial?.eng_vector||'')
-  const [actFormat,setActFormat]     = useState(initial?.act_format||'')
-  const [actType,setActType]         = useState(initial?.act_type||'')
+  const [actLocation,setActLocation]   = useState(initial?.act_location||'')
+  const [engVector,setEngVector]       = useState(initial?.eng_vector||'')
+  const [actFormat,setActFormat]       = useState(initial?.act_format||'')
+  const [actType,setActType]           = useState(initial?.act_type||'')
   const [travelNeeded,setTravelNeeded] = useState(initial?.travel_needed??false)
   const [travelJustification,setTravelJustification] = useState(initial?.travel_justification??'')
   const [travelCost,setTravelCost] = useState(initial?.travel_cost??'')
   const [travelStart,setTravelStart] = useState(initial?.travel_start??'')
-  const [travelEnd,setTravelEnd] = useState(initial?.travel_end??'')
+  const [travelEnd,setTravelEnd]   = useState(initial?.travel_end??'')
 
   const allS = [...stakeholders,...tmpStakes]
   const instS = inst ? allS.filter(s=>s.institution?.toLowerCase()===inst.toLowerCase()&&s.name!=='(Add stakeholder)') : allS.filter(s=>s.name!=='(Add stakeholder)')
@@ -252,7 +228,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
     <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12 }}>
       <div>
         <FieldLabel>Institution *</FieldLabel>
-        <input style={inp} list="inst-dl" value={inst} onChange={e=>{setInst(e.target.value);setStakeId('')}} placeholder="e.g. Curtin University" />
+        <input style={inp} list="inst-dl" value={inst} onChange={e=>{setInst(e.target.value);setStakeId('')}} placeholder="e.g. Curtin" />
         <datalist id="inst-dl">{allInsts.map(n=><option key={n} value={n}/>)}</datalist>
       </div>
       <div>
@@ -298,11 +274,33 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
     </div>
     <Divider/>
     <FieldLabel>Event title</FieldLabel>
-    <input style={inp} value={eventTitle} onChange={e=>setEventTitle(e.target.value)} placeholder="e.g. Curtin University — Meeting — 2026-06-05"/>
+    <input style={inp} value={eventTitle} onChange={e=>setEventTitle(e.target.value)} placeholder="e.g. Curtin — Meeting — 2026-06-05"/>
     <FieldLabel>Additional stakeholders</FieldLabel>
-    <input style={inp} value={additionalStakeholders} onChange={e=>setAddStakes(e.target.value)} placeholder="e.g. Jane Smith, John Doe (separate with commas)"/>
-    <FieldLabel>Notes / summary</FieldLabel>
-    <textarea style={tex} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="What was discussed? Key outcomes?"/>
+    <input style={inp} value={additionalStakeholders} onChange={e=>setAddStakes(e.target.value)} placeholder="e.g. Jane Smith, John Doe"/>
+    {/* ── Notes with Template + Chorus paste ── */}
+    <div style={{ display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:5 }}>
+      <FieldLabel>Notes / summary</FieldLabel>
+      <div style={{ display:'flex',gap:8 }}>
+        <button onClick={()=>{
+          const template=`Attendees: ${additionalStakeholders||''}\n\nDiscussion:\n\nKey outcomes:\n\nNext steps:`
+          setNotes(template)
+        }} style={{ fontSize:11,fontWeight:700,color:C.mid,background:'none',border:`1px solid ${C.border}`,padding:'3px 8px',cursor:'pointer',fontFamily:FONT,letterSpacing:'0.5px',textTransform:'uppercase' }}>Template</button>
+        <button onClick={()=>{
+          navigator.clipboard.readText().then(text=>{
+            setNotes(text.trim())
+            const actionMatch=text.match(/action items?:?\n([\s\S]*?)(?:\n\n|\n[A-Z]|$)/i)
+            if(actionMatch){
+              const lines=actionMatch[1].split('\n').map(l=>l.replace(/^[-•*\d.]+\s*/,'')).filter(l=>l.trim().length>5)
+              if(lines.length>0){
+                const newActions=lines.slice(0,6).map((text,i)=>({id:Date.now().toString()+i,text:text.trim(),priority:'Medium',done:false}))
+                setActions(prev=>[...prev,...newActions])
+              }
+            }
+          }).catch(()=>alert('Could not read clipboard. Please paste manually.'))
+        }} style={{ fontSize:11,fontWeight:700,color:C.accent,background:'none',border:`1px solid ${C.accent}`,padding:'3px 8px',cursor:'pointer',fontFamily:FONT,letterSpacing:'0.5px',textTransform:'uppercase' }}>Paste Chorus</button>
+      </div>
+    </div>
+    <textarea style={tex} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Paste a Chorus.ai summary, or use Template to start from scratch…"/>
     <FieldLabel>Next steps / actions</FieldLabel>
     <div style={{ marginBottom:6 }}>
       {actions.map(a=><div key={a.id} style={{ display:'flex',gap:6,alignItems:'center',marginBottom:6 }}>
@@ -339,7 +337,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   </>
 }
 
-// ── Stakeholder form ──────────────────────────────────────────────────────────
+// ── Stakeholder form ────────────────────────────────────────────────────────
 function StakeholderForm({ initial, allInsts, onSave, onClose }) {
   const [name,setName]   = useState(initial?.name||'')
   const [role,setRole]   = useState(initial?.role||'')
@@ -353,7 +351,7 @@ function StakeholderForm({ initial, allInsts, onSave, onClose }) {
   return <>
     <FieldLabel>Full name *</FieldLabel><input style={inp} value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Jane Smith"/>
     <FieldLabel>Role *</FieldLabel><select style={sel} value={role} onChange={e=>setRole(e.target.value)}><option value="">— select role —</option>{ROLES.map(r=><option key={r}>{r}</option>)}</select>
-    <FieldLabel>Institution *</FieldLabel><input style={inp} list="sm-inst-dl" value={inst} onChange={e=>setInst(e.target.value)} placeholder="e.g. Curtin University"/><datalist id="sm-inst-dl">{allInsts.map(n=><option key={n} value={n}/>)}</datalist>
+    <FieldLabel>Institution *</FieldLabel><input style={inp} list="sm-inst-dl" value={inst} onChange={e=>setInst(e.target.value)} placeholder="e.g. Curtin"/><datalist id="sm-inst-dl">{allInsts.map(n=><option key={n} value={n}/>)}</datalist>
     <FieldLabel>Email</FieldLabel><input style={inp} type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="jane@uni.edu.au"/>
     <FieldLabel>Notes</FieldLabel><textarea style={{ ...tex,minHeight:50 }} value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any context…"/>
     <div style={{ display:'flex',justifyContent:'flex-end',gap:8,marginTop:8 }}>
@@ -363,7 +361,7 @@ function StakeholderForm({ initial, allInsts, onSave, onClose }) {
   </>
 }
 
-// ── Engagement card ───────────────────────────────────────────────────────────
+// ── Engagement card ─────────────────────────────────────────────────────────
 function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onSharePoint, compact }) {
   const openActions = (eng.actions||[]).filter(a=>!a.done)
   const isClosed = eng.status==='Closed'
@@ -392,18 +390,28 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
     </div>
     {eng.notes&&<div style={{ fontSize:13,color:isClosed?'#bbb':C.mid,marginBottom:8,lineHeight:1.6,fontFamily:FONT }}>{eng.notes}</div>}
     {(eng.actions||[]).length>0&&<div style={{ borderTop:`0.5px solid ${C.borderLight}`,paddingTop:8 }}>
-      {(eng.actions||[]).map(a=><div key={a.id} style={{ display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:13,fontFamily:FONT }}>
-        <div style={{ width:7,height:7,borderRadius:'50%',background:dotColor||(PRI_C[a.priority]||C.amber),flexShrink:0 }}/>
-        <span style={{ flex:1,color:isClosed||a.done?'#bbb':C.black,textDecoration:a.done?'line-through':'none' }}>{a.text}</span>
-        <Tag color={tagColor||(PRI_C[a.priority]||C.amber)}>{a.priority}</Tag>
-        {!isClosed&&<button
-          onClick={()=>onToggleAction(eng.id,a.id)}
-          style={{ background:a.done?'#e8f5ee':'transparent',border:`1px solid ${a.done?C.green:C.border}`,padding:'3px 9px',fontSize:11,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,color:a.done?C.green:C.mid,whiteSpace:'nowrap' }}
-        >{a.done?'✓ Done':'Mark done'}</button>}
-      </div>)}
+      {(eng.actions||[]).map(a=>{
+        const overdue=!a.done&&!isClosed&&isOverdue(eng.date)
+        return <div key={a.id} style={{ display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:13,fontFamily:FONT }}>
+          <div style={{ width:7,height:7,borderRadius:'50%',background:a.done||isClosed?'#ccc':overdue?C.red:(PRI_C[a.priority]||C.amber),flexShrink:0 }}/>
+          <span style={{ flex:1,color:isClosed||a.done?'#bbb':overdue?C.red:C.black,textDecoration:a.done?'line-through':'none',fontWeight:overdue?700:400 }}>{a.text}{overdue?' ⚠':''}</span>
+          <Tag color={a.done||isClosed?'#ccc':(PRI_C[a.priority]||C.amber)}>{a.priority}</Tag>
+          {!isClosed&&<button
+            onClick={()=>onToggleAction(eng.id,a.id)}
+            style={{ background:a.done?'#e8f5ee':'transparent',border:`1px solid ${a.done?C.green:C.border}`,padding:'3px 9px',fontSize:11,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,color:a.done?C.green:C.mid,whiteSpace:'nowrap' }}
+          >{a.done?'✓ Done':'Mark done'}</button>}
+        </div>
+      })}
     </div>}
     <div style={{ display:'flex',justifyContent:'flex-end',gap:14,marginTop:10,paddingTop:10,borderTop:`0.5px solid ${C.borderLight}` }}>
       {!isClosed&&<button onClick={()=>onClose(eng.id)} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,cursor:'pointer',fontFamily:FONT }}>✓ Close</button>}
+      {!isClosed&&<button onClick={()=>{
+        const subject=encodeURIComponent(eng.event_title||`Follow-up: ${eng.institution}`)
+        const openA=(eng.actions||[]).filter(a=>!a.done)
+        const actionLines=openA.length?`\n\nNext steps:\n${openA.map((a,i)=>`${i+1}. ${a.text}`).join('\n')}`:''
+        const body=encodeURIComponent(`Hi ${eng.stakeholder_name},\n\nThank you for your time.\n\n${eng.notes||''}${actionLines}\n\nKind regards,\n${eng.owner||'Al Briggs'}`)
+        window.location.href=`mailto:${stake?.email||''}?subject=${subject}&body=${body}`
+      }} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.mid,cursor:'pointer',fontFamily:FONT }}>✉ Draft email</button>}
       <button onClick={onEdit} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:isClosed?'#bbb':C.accent,cursor:'pointer',fontFamily:FONT }}>Edit</button>
       <button onClick={onDelete} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,cursor:'pointer',fontFamily:FONT }}>Delete</button>
       {onSharePoint&&!isClosed&&(
@@ -415,37 +423,67 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
   </div>
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────────
+// ── Activity Timeline ───────────────────────────────────────────────────────
+function ActivityTimeline({ engs }) {
+  const sorted=engs.slice().sort((a,b)=>a.date.localeCompare(b.date))
+  if(!sorted.length) return <div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>No engagements to display.</div>
+  const months={}
+  sorted.forEach(e=>{
+    const key=e.date?.slice(0,7)||'Unknown'
+    if(!months[key])months[key]=[]
+    months[key].push(e)
+  })
+  return <div style={{ position:'relative',paddingLeft:24,marginBottom:8 }}>
+    <div style={{ position:'absolute',left:7,top:0,bottom:0,width:2,background:C.borderLight }}/>
+    {Object.entries(months).map(([month,mes])=>(
+      <div key={month}>
+        <div style={{ fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.light,marginBottom:10,marginTop:16,fontFamily:FONT }}>
+          {new Date(month+'-01').toLocaleString('default',{month:'long',year:'numeric'})}
+        </div>
+        {mes.map(e=>{
+          const isClosed=e.status==='Closed'
+          const openN=(e.actions||[]).filter(a=>!a.done).length
+          const col=isClosed?'#ccc':openN?C.red:instColor(e.institution)
+          return <div key={e.id} style={{ display:'flex',alignItems:'flex-start',gap:12,marginBottom:12,position:'relative' }}>
+            <div style={{ width:14,height:14,borderRadius:'50%',background:col,border:`2px solid ${C.white}`,flexShrink:0,marginTop:2,zIndex:1 }}/>
+            <div style={{ flex:1,background:isClosed?'#f5f5f5':C.white,border:`0.5px solid ${isClosed?'#ddd':C.border}`,borderLeft:`3px solid ${col}`,padding:'10px 12px' }}>
+              <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8,marginBottom:4 }}>
+                <div style={{ flex:1 }}>
+                  {e.event_title&&<div style={{ fontSize:13,fontWeight:700,color:isClosed?'#aaa':C.black,fontFamily:FONT,marginBottom:2 }}>{e.event_title}</div>}
+                  <div style={{ fontSize:11,color:isClosed?'#ccc':C.light,fontFamily:FONT }}>
+                    {e.stakeholder_name}
+                    {e.additional_stakeholders&&<><span style={{ color:C.accent,margin:'0 4px' }}>|</span>{e.additional_stakeholders}</>}
+                  </div>
+                </div>
+                <span style={{ fontSize:11,fontWeight:700,color:isClosed?'#bbb':C.mid,whiteSpace:'nowrap',fontFamily:FONT }}>{fmtDate(e.date)}</span>
+              </div>
+              <div style={{ display:'flex',gap:4,flexWrap:'wrap' }}>
+                <Tag color={isClosed?'#ccc':C.accent}>{e.type}</Tag>
+                {e.objective&&<Tag color={isClosed?'#ccc':(OBJ_C[e.objective]||C.mid)}>{e.objective}</Tag>}
+                <Tag color={isClosed?'#ccc':(STATUS_C[e.status]||C.mid)}>{e.status}</Tag>
+                {openN>0&&<Tag color={C.red}>{openN} open</Tag>}
+                {e.sharepoint_submitted&&<Tag color={isClosed?'#bbb':C.green}>✓ SP</Tag>}
+              </div>
+            </div>
+          </div>
+        })}
+      </div>
+    ))}
+  </div>
+}
+
+// ── InstProfile ─────────────────────────────────────────────────────────────
 function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
   const [form,setForm] = React.useState({
-    parent_name: data.parent_name||'',
-    parent_id:   data.parent_id||'',
-    org_id:      data.org_id||'',
-    domain:      data.domain||'',
-    sub_id:      data.sub_id||'',
-    sub_name:    data.sub_name||'',
+    parent_name:data.parent_name||'',parent_id:data.parent_id||'',
+    org_id:data.org_id||'',domain:data.domain||'',
+    sub_id:data.sub_id||'',sub_name:data.sub_name||'',
   })
   React.useEffect(()=>{
-    setForm({
-      parent_name: data.parent_name||'',
-      parent_id:   data.parent_id||'',
-      org_id:      data.org_id||'',
-      domain:      data.domain||'',
-      sub_id:      data.sub_id||'',
-      sub_name:    data.sub_name||'',
-    })
+    setForm({ parent_name:data.parent_name||'',parent_id:data.parent_id||'',org_id:data.org_id||'',domain:data.domain||'',sub_id:data.sub_id||'',sub_name:data.sub_name||'' })
   },[name])
-
   const hasData=Object.values(form).some(v=>v.trim())
-  const fields=[
-    {key:'parent_name',label:'Parent Name'},
-    {key:'parent_id',  label:'Parent ID'},
-    {key:'org_id',     label:'Org ID'},
-    {key:'domain',     label:'Domain'},
-    {key:'sub_id',     label:'SUB ID'},
-    {key:'sub_name',   label:'SUB Name'},
-  ]
-
+  const fields=[{key:'parent_name',label:'Parent Name'},{key:'parent_id',label:'Parent ID'},{key:'org_id',label:'Org ID'},{key:'domain',label:'Domain'},{key:'sub_id',label:'SUB ID'},{key:'sub_name',label:'SUB Name'}]
   return(
     <div style={{ background:C.white,border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.black}`,padding:'14px 16px',marginBottom:16 }}>
       <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:showEdit||hasData?12:0 }}>
@@ -482,12 +520,13 @@ function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
   )
 }
 
+// ── MainApp ─────────────────────────────────────────────────────────────────
 function MainApp() {
   const [tab,setTab]               = useState('overview')
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth < 768
   const [engs,setEngs]             = useState([])
-  const [instData,setInstData]     = useState({}) // keyed by name
+  const [instData,setInstData]     = useState({})
   const [stakes,setStakes]         = useState([])
   const [instOrder,setInstOrder]   = useState([])
   const [loading,setLoading]       = useState(true)
@@ -502,6 +541,7 @@ function MainApp() {
   const [showStakeForm,setShowStakeForm] = useState(false)
   const [stakesOpen,setStakesOpen]       = useState(false)
   const [engsOpen,setEngsOpen]           = useState(true)
+  const [showTimeline,setShowTimeline]   = useState(false)
   const [showInstForm,setShowInstForm]   = useState(false)
   const [showInstEdit,setShowInstEdit]   = useState(false)
   const [editingInstName,setEditingInstName] = useState(false)
@@ -520,7 +560,6 @@ function MainApp() {
 
   function showToast(msg){setToast(msg);setTimeout(()=>setToast(''),2800)}
 
-  // ── Load ────────────────────────────────────────────────────────────────────
   useEffect(()=>{
     async function load(){
       setLoading(true)
@@ -532,14 +571,11 @@ function MainApp() {
       ])
       const e=eRows||[],s=sRows||[]
       setEngs(e);setStakes(s)
-      // Restore saved order from et_meta, filling in any missing institutions
       const allInstNames=[...new Set(e.map(x=>x.institution).concat(s.map(x=>x.institution)).filter(Boolean))]
       const savedOrder=mRow?.inst_order||[]
       const merged=[...savedOrder.filter(n=>allInstNames.includes(n)),...allInstNames.filter(n=>!savedOrder.includes(n))]
       setInstOrder(merged)
-      // Load institution detail data
       const iMap={};(iRows||[]).forEach(i=>iMap[i.name]=i);setInstData(iMap)
-      // Restore saved colour assignments, assign new ones for any missing institutions
       const savedColors=mRow?.inst_colors||{}
       const newColorMap={...savedColors}
       merged.forEach(name=>{ if(!newColorMap[name]) newColorMap[name]=assignColor(name,newColorMap) })
@@ -549,7 +585,6 @@ function MainApp() {
     load()
   },[])
 
-  // ── Supabase helpers ─────────────────────────────────────────────────────────
   async function upsertEng(data,id){
     const row={...data,updated_at:new Date().toISOString()};if(id)row.id=id
     const{data:saved}=await supabase.from('engagements').upsert(row).select().single()
@@ -578,7 +613,6 @@ function MainApp() {
     if(!window.confirm(`Delete ${name} and all its stakeholders and engagements?`))return
     const existing=instData[name]
     if(existing?.id) await supabase.from('institutions').delete().eq('id',existing.id)
-    // Delete all engagements and stakeholders for this institution
     await supabase.from('engagements').delete().eq('institution',name)
     await supabase.from('stakeholders').delete().eq('institution',name)
     setEngs(p=>p.filter(e=>e.institution!==name))
@@ -588,25 +622,20 @@ function MainApp() {
     setSelInst(null)
     showToast(`✓ ${name} deleted`)
   }
-  async function renameInst(oldName, newName){
-    const trimmed = newName.trim()
+  async function renameInst(oldName,newName){
+    const trimmed=newName.trim()
     if(!trimmed||trimmed===oldName){setEditingInstName(false);return}
     if(instOrder.includes(trimmed)){showToast('An institution with that name already exists');return}
-    // Update all engagements and stakeholders
     await supabase.from('engagements').update({institution:trimmed}).eq('institution',oldName)
     await supabase.from('stakeholders').update({institution:trimmed}).eq('institution',oldName)
-    // Update institution details record if exists
     const existing=instData[oldName]
     if(existing?.id) await supabase.from('institutions').update({name:trimmed}).eq('id',existing.id)
-    // Update colour map
     if(instColorMap[oldName]){instColorMap[trimmed]=instColorMap[oldName];delete instColorMap[oldName]}
-    // Update local state
     setEngs(p=>p.map(e=>e.institution===oldName?{...e,institution:trimmed}:e))
     setStakes(p=>p.map(s=>s.institution===oldName?{...s,institution:trimmed}:s))
     setInstData(p=>{const n={...p};if(n[oldName]){n[trimmed]={...n[oldName],name:trimmed};delete n[oldName]}return n})
     setInstOrder(p=>p.map(i=>i===oldName?trimmed:i))
-    setSelInst(trimmed)
-    setEditingInstName(false)
+    setSelInst(trimmed);setEditingInstName(false)
     showToast(`✓ Renamed to ${trimmed}`)
   }
   async function deleteStake(id){
@@ -614,9 +643,6 @@ function MainApp() {
     setStakes(p=>p.filter(s=>s.id!==id))
   }
 
-  // ── Inbox sync ───────────────────────────────────────────────────────────────
-  // Only syncs from the active Outlook inbox — ask Claude to fetch and provide
-  // new email data when you want to sync.
   async function runInboxSync(emailData){
     if(!emailData||!emailData.length){showToast('No new emails to sync');return}
     setSyncing(true)
@@ -641,13 +667,9 @@ function MainApp() {
     finally{setSyncing(false)}
   }
 
-  // ── SharePoint manual submit ─────────────────────────────────────────────────
-  // Replace the URL below with your Power Automate HTTP POST URL
   async function sendToSharePoint(eng) {
-    // Fetch fresh data from Supabase to ensure we have all fields
     const { data: freshEng } = await supabase.from('engagements').select('*').eq('id', eng.id).single()
     const e = freshEng || eng
-    console.log('Sending to SharePoint:', JSON.stringify(e, null, 2))
     const stake = stakes.find(s=>s.id===e.stakeholder_id)
     try {
       const res = await fetch('/api/sharepoint-proxy', {
@@ -656,48 +678,25 @@ function MainApp() {
         body: JSON.stringify({
           type: 'MANUAL',
           record: {
-            id:                   e.id,
-            event_title:          e.event_title || '',
-            additional_stakeholders: e.additional_stakeholders || '',
-            institution:          e.institution,
-            stakeholder_name:     e.stakeholder_name,
-            contact_email:        stake?.email || '',
-            date:                 e.date,
-            type:                 e.type,
-            objective:            e.objective || '',
-            status:               e.status,
-            owner:                e.owner || '',
-            notes:                e.notes || '',
-            act_category:         e.act_category || '',
-            eng_vector:           e.eng_vector || '',
-            act_format:           e.act_format || '',
-            act_type:             e.act_type || '',
-            target_audience:      e.target_audience || '',
-            act_location:         e.act_location || '',
-            travel_needed:        e.travel_needed ?? false,
-            travel_justification: e.travel_justification ?? '',
-            travel_cost:          e.travel_cost ?? null,
-            travel_start:         e.travel_start ?? '',
-            travel_end:           e.travel_end ?? '',
+            id:e.id,event_title:e.event_title||'',additional_stakeholders:e.additional_stakeholders||'',
+            institution:e.institution,stakeholder_name:e.stakeholder_name,contact_email:stake?.email||'',
+            date:e.date,type:e.type,objective:e.objective||'',status:e.status,owner:e.owner||'',notes:e.notes||'',
+            act_category:e.act_category||'',eng_vector:e.eng_vector||'',act_format:e.act_format||'',act_type:e.act_type||'',
+            target_audience:e.target_audience||'',act_location:e.act_location||'',
+            travel_needed:e.travel_needed??false,travel_justification:e.travel_justification??'',
+            travel_cost:e.travel_cost??null,travel_start:e.travel_start??'',travel_end:e.travel_end??'',
           }
         })
       })
       const json = await res.json().catch(()=>({}))
       if(json.ok){
-        // Mark engagement as submitted in Supabase
         await supabase.from('engagements').update({sharepoint_submitted:true}).eq('id',e.id)
         setEngs(p=>p.map(x=>x.id===e.id?{...x,sharepoint_submitted:true}:x))
         showToast('✓ Sent to SharePoint')
-      } else {
-        showToast('SharePoint error — check flow')
-      }
-    } catch(err) {
-      console.error(err)
-      showToast('Failed to reach SharePoint flow')
-    }
+      } else { showToast('SharePoint error — check flow') }
+    } catch(err) { console.error(err); showToast('Failed to reach SharePoint flow') }
   }
 
-  // ── Auto-merge duplicate stakeholders ────────────────────────────────────────
   async function mergeDuplicates(){
     const byEmail={}
     stakes.forEach(s=>{if(!s.email)return;const k=s.email.toLowerCase();if(!byEmail[k])byEmail[k]=[];byEmail[k].push(s)})
@@ -708,9 +707,7 @@ function MainApp() {
       const primary=group[0]
       for(const dupe of group.slice(1)){
         const affected=engs.filter(e=>e.stakeholder_id===dupe.id)
-        for(const e of affected){
-          await supabase.from('engagements').update({stakeholder_id:primary.id,stakeholder_name:primary.name}).eq('id',e.id)
-        }
+        for(const e of affected) await supabase.from('engagements').update({stakeholder_id:primary.id,stakeholder_name:primary.name}).eq('id',e.id)
         await supabase.from('stakeholders').delete().eq('id',dupe.id)
         merged++
       }
@@ -722,7 +719,6 @@ function MainApp() {
     }else{showToast('No duplicates found')}
   }
 
-  // ── Persist instOrder to Supabase when it changes ───────────────────────────
   const instOrderRef = React.useRef(instOrder)
   React.useEffect(()=>{
     instOrderRef.current=instOrder
@@ -731,12 +727,10 @@ function MainApp() {
     }
   },[instOrder,loading])
 
-  // ── Derived ──────────────────────────────────────────────────────────────────
   const allInsts=[...new Set([...instOrder,...engs.map(e=>e.institution),...stakes.map(s=>s.institution)].filter(Boolean))]
   const allActs=engs.flatMap(e=>((e.actions&&Array.isArray(e.actions)?e.actions:[])).map(a=>({...a,inst:e.institution,stake:e.stakeholder_name,date:e.date,engId:e.id})))
   const openActs=allActs.filter(a=>!a.done).sort((a,b)=>a.date.localeCompare(b.date))
 
-  // ── Save handlers ─────────────────────────────────────────────────────────────
   async function handleSaveEng(formData){
     const tmpToReal={}
     for(const s of(formData._newStakeholders||[])){
@@ -747,30 +741,15 @@ function MainApp() {
     const sid=tmpToReal[formData.stakeholder_id]||formData.stakeholder_id
     const so=[...stakes,...(formData._newStakeholders||[])].find(s=>s.id===formData.stakeholder_id)||stakes.find(s=>s.id===sid)
     await upsertEng({
-      institution:      formData.institution,
-      stakeholder_id:   sid,
-      stakeholder_name: so?.name||formData.stakeholder_name,
-      date:             formData.date,
-      type:             formData.type,
-      objective:        formData.objective,
-      status:           formData.status,
-      owner:            formData.owner,
-      event_title:              formData.event_title||'',
-      additional_stakeholders:  formData.additional_stakeholders||'',
-      notes:            formData.notes,
-      actions:          formData.actions,
-      act_category:     formData.act_category||'',
-      eng_vector:       formData.eng_vector||'',
-      act_format:       formData.act_format||'',
-      act_type:         formData.act_type||'',
-      target_audience:  formData.target_audience||'',
-      act_location:     formData.act_location||'',
-      sharepoint_submitted: formData.sharepoint_submitted??false,
-      travel_needed:    formData.travel_needed??false,
-      travel_justification: formData.travel_justification||'',
-      travel_cost:      formData.travel_cost||null,
-      travel_start:     formData.travel_start||null,
-      travel_end:       formData.travel_end||null,
+      institution:formData.institution,stakeholder_id:sid,stakeholder_name:so?.name||formData.stakeholder_name,
+      date:formData.date,type:formData.type,objective:formData.objective,status:formData.status,owner:formData.owner,
+      event_title:formData.event_title||'',additional_stakeholders:formData.additional_stakeholders||'',
+      notes:formData.notes,actions:formData.actions,
+      act_category:formData.act_category||'',eng_vector:formData.eng_vector||'',act_format:formData.act_format||'',act_type:formData.act_type||'',
+      target_audience:formData.target_audience||'',act_location:formData.act_location||'',
+      sharepoint_submitted:formData.sharepoint_submitted??false,
+      travel_needed:formData.travel_needed??false,travel_justification:formData.travel_justification||'',
+      travel_cost:formData.travel_cost||null,travel_start:formData.travel_start||null,travel_end:formData.travel_end||null,
     },editEngId||undefined)
     setInstOrder(p=>[...new Set([...p,formData.institution])])
     setEngModal(null);setEditEngId(null)
@@ -801,12 +780,9 @@ function MainApp() {
     const name=newInstName.trim()
     if(!name)return
     if(allInsts.includes(name)){showToast('Already exists');return}
-    // Assign a colour for the new institution
-    const newColor = assignColor(name, instColorMap)
-    instColorMap = {...instColorMap, [name]: newColor}
-    // Save placeholder stakeholder so institution persists
+    const newColor=assignColor(name,instColorMap)
+    instColorMap={...instColorMap,[name]:newColor}
     await upsertStake({name:'(Add stakeholder)',role:'',institution:name,email:'',notes:'placeholder'})
-    // Persist updated colour map
     await supabase.from('et_meta').upsert({id:'singleton',inst_colors:{...instColorMap},updated_at:new Date().toISOString()})
     setInstOrder(p=>[name,...p]);setNewInstName('');setShowInstForm(false)
     setSelInst(name);showToast(`✓ ${name} added`)
@@ -822,7 +798,7 @@ function MainApp() {
   )
 
   const filteredInsts=allInsts.filter(n=>n.toLowerCase().includes(instSearch.toLowerCase()))
-  function selectInst(name){setSelInst(name);setShowEngForm(false);setShowStakeForm(false);setStakesOpen(false);setEngsOpen(true)}
+  function selectInst(name){setSelInst(name);setShowEngForm(false);setShowStakeForm(false);setStakesOpen(false);setEngsOpen(true);setShowTimeline(false)}
   function sortEngs(list){
     return list.slice().sort((a,b)=>{
       const aClosed=a.status==='Closed'?1:0
@@ -855,10 +831,8 @@ function MainApp() {
 
       <div style={{ paddingTop:isMobile?100:112 }}>
 
-        {/* ── OVERVIEW ── */}
         {tab==='overview'&&(
           <div style={{ display:'grid',gridTemplateColumns:isMobile?'1fr':'320px 1fr',height:isMobile?'auto':'calc(100vh - 112px)',overflow:isMobile?'visible':'hidden' }}>
-            {/* Left — open actions */}
             <div style={{ borderRight:isMobile?'none':`1px solid ${C.border}`,borderBottom:isMobile?`1px solid ${C.border}`:'none',overflowY:'auto',background:C.white,maxHeight:isMobile?300:'none' }}>
               <div style={{ padding:'14px 16px',borderBottom:`1px solid ${C.borderLight}`,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:C.white,zIndex:10 }}>
                 <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.accent,fontFamily:FONT }}>Open actions</div>
@@ -882,7 +856,6 @@ function MainApp() {
                 </div>
               )):<div style={{ textAlign:'center',padding:'40px 20px',color:C.light,fontSize:13,fontFamily:FONT }}>No open actions</div>}
             </div>
-            {/* Right — stats + recent */}
             <div style={{ overflowY:'auto',padding:isMobile?'16px':'20px 24px' }}>
               <div style={{ display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:1,background:C.border,border:`0.5px solid ${C.border}`,marginBottom:20 }}>
                 {[{v:engs.length,l:'Engagements',c:C.accent},{v:allInsts.length,l:'Institutions'},{v:openActs.length,l:'Open actions',c:C.red},{v:engs.filter(e=>e.status==='Closed').length,l:'Completed'}].map(({v,l,c})=>(
@@ -926,10 +899,8 @@ function MainApp() {
           </div>
         )}
 
-        {/* ── INSTITUTIONS ── */}
         {tab==='institutions'&&(
           <div style={{ display:'grid',gridTemplateColumns:isMobile?'1fr':'320px 1fr',height:isMobile?'auto':'calc(100vh - 112px)',overflow:isMobile?'visible':'hidden' }}>
-            {/* Left list */}
             <div style={{ borderRight:isMobile?'none':`1px solid ${C.border}`,borderBottom:isMobile?`1px solid ${C.border}`:'none',overflowY:'auto',background:C.white,maxHeight:isMobile?280:'none' }}>
               <div style={{ padding:'14px 16px',borderBottom:`1px solid ${C.borderLight}`,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:C.white,zIndex:10 }}>
                 <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.accent,fontFamily:FONT }}>Institutions</div>
@@ -952,8 +923,7 @@ function MainApp() {
                 const open=ie.filter(e=>e.status!=='Closed').length
                 const isDragging=dragSrc===name
                 return <div
-                  key={name}
-                  draggable
+                  key={name} draggable
                   onDragStart={e=>{setDragSrc(name);e.dataTransfer.effectAllowed='move'}}
                   onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect='move'}}
                   onDrop={e=>{
@@ -961,11 +931,9 @@ function MainApp() {
                     if(!dragSrc||dragSrc===name)return
                     setInstOrder(prev=>{
                       const next=[...prev]
-                      const from=next.indexOf(dragSrc)
-                      const to=next.indexOf(name)
+                      const from=next.indexOf(dragSrc),to=next.indexOf(name)
                       if(from<0||to<0)return prev
-                      next.splice(from,1)
-                      next.splice(to,0,dragSrc)
+                      next.splice(from,1);next.splice(to,0,dragSrc)
                       return next
                     })
                     setDragSrc(null)
@@ -987,7 +955,6 @@ function MainApp() {
                 </div>
               })}
             </div>
-            {/* Right detail */}
             <div style={{ overflowY:isMobile?'visible':'auto',background:C.bg }}>
               {!selInst?(
                 <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:C.light,fontSize:14,fontWeight:300,gap:8,fontFamily:FONT }}>
@@ -1001,13 +968,7 @@ function MainApp() {
                       <div style={{ flex:1,minWidth:0 }}>
                         {editingInstName
                           ? <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:4 }}>
-                              <input
-                                style={{ ...inp,fontSize:20,fontWeight:700,marginBottom:0,flex:1 }}
-                                value={newInstNameVal}
-                                onChange={e=>setNewInstNameVal(e.target.value)}
-                                onKeyDown={e=>{if(e.key==='Enter')renameInst(selInst,newInstNameVal);if(e.key==='Escape')setEditingInstName(false)}}
-                                autoFocus
-                              />
+                              <input style={{ ...inp,fontSize:20,fontWeight:700,marginBottom:0,flex:1 }} value={newInstNameVal} onChange={e=>setNewInstNameVal(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')renameInst(selInst,newInstNameVal);if(e.key==='Escape')setEditingInstName(false)}} autoFocus/>
                               <Btn label="Save" small onClick={()=>renameInst(selInst,newInstNameVal)}/>
                               <Btn label="Cancel" small ghost onClick={()=>setEditingInstName(false)}/>
                             </div>
@@ -1030,29 +991,19 @@ function MainApp() {
                     </div>
                   </div>
                   <div style={{ padding:'20px 24px' }}>
-                    {/* Institution profile */}
-                    <InstProfile
-                      name={selInst}
-                      data={instData[selInst]||{}}
-                      showEdit={showInstEdit}
-                      onToggleEdit={()=>setShowInstEdit(v=>!v)}
-                      onSave={async(d)=>{await upsertInst({...d,name:selInst});setShowInstEdit(false);showToast('✓ Institution details saved')}}
-                    />
-                    {/* Inline engagement form */}
+                    <InstProfile name={selInst} data={instData[selInst]||{}} showEdit={showInstEdit} onToggleEdit={()=>setShowInstEdit(v=>!v)} onSave={async(d)=>{await upsertInst({...d,name:selInst});setShowInstEdit(false);showToast('✓ Institution details saved')}}/>
                     {showEngForm&&(
                       <div style={{ background:'#F7F7F5',border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.accent}`,padding:16,marginBottom:16 }}>
                         <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.accent,marginBottom:14,fontFamily:FONT }}>New engagement — {selInst}</div>
                         <EngagementForm initial={{ institution:selInst }} stakeholders={instStakes} onSave={d=>{handleSaveEng(d);setShowEngForm(false)}} onClose={()=>setShowEngForm(false)}/>
                       </div>
                     )}
-                    {/* Inline stakeholder form */}
                     {showStakeForm&&(
                       <div style={{ background:'#F7F7F5',border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.green}`,padding:16,marginBottom:16 }}>
                         <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.green,marginBottom:14,fontFamily:FONT }}>New stakeholder — {selInst}</div>
                         <StakeholderForm initial={{ institution:selInst }} allInsts={allInsts} onSave={d=>{handleSaveStake(d);setShowStakeForm(false)}} onClose={()=>setShowStakeForm(false)}/>
                       </div>
                     )}
-                    {/* Open actions */}
                     {instOpenActs.length>0&&(
                       <div style={{ background:C.white,border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.red}`,padding:'14px 16px',marginBottom:20 }}>
                         <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.red,marginBottom:10,fontFamily:FONT }}>Open actions — {instOpenActs.length}</div>
@@ -1073,7 +1024,6 @@ function MainApp() {
                         ))}
                       </div>
                     )}
-                    {/* Stakeholders */}
                     <div style={{ marginBottom:24 }}>
                       <SectionHead label="Stakeholders" right={
                         <div style={{ display:'flex',alignItems:'center',gap:10 }}>
@@ -1097,7 +1047,6 @@ function MainApp() {
                         </div>
                       )):<div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>None yet — click "+ Stakeholder" above.</div>)}
                     </div>
-                    {/* Engagements */}
                     <SectionHead label="Engagements" right={
                       <div style={{ display:'flex',alignItems:'center',gap:10 }}>
                         <span style={{ fontSize:11,fontWeight:300,color:C.light }}>{instEngs.length}</span>
@@ -1110,6 +1059,13 @@ function MainApp() {
                         onDelete={()=>{if(window.confirm('Delete?'))deleteEng(e.id)}}
                         onToggleAction={toggleAction} onClose={closeEng} onSharePoint={sendToSharePoint}/>
                     )):<div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>None yet — click "+ Engagement" above.</div>)}
+                    {/* Activity Timeline */}
+                    <div style={{ marginTop:24 }}>
+                      <SectionHead label="Activity timeline" right={
+                        <button onClick={()=>setShowTimeline(v=>!v)} style={{ background:'none',border:'none',fontSize:13,cursor:'pointer',color:C.light,lineHeight:1,padding:0,fontFamily:FONT }}>{showTimeline?'▲':'▼'}</button>
+                      }/>
+                      {showTimeline&&<ActivityTimeline engs={instEngs}/>}
+                    </div>
                   </div>
                 </>
               )}
@@ -1117,7 +1073,6 @@ function MainApp() {
           </div>
         )}
 
-        {/* ── STAKEHOLDERS ── */}
         {tab==='stakeholders'&&(
           <div style={{ padding:isMobile?'16px':'20px 24px',maxWidth:960 }}>
             <div style={{ display:'flex',gap:8,marginBottom:14,flexWrap:'wrap',alignItems:'center' }}>
@@ -1154,20 +1109,16 @@ function MainApp() {
         )}
       </div>
 
-      {/* Engagement modal */}
       {engModal&&(
         <Modal title={editEngId?'Edit engagement':'Log engagement'} onClose={()=>{setEngModal(null);setEditEngId(null)}}>
           <EngagementForm initial={editEngId?engModal:(engModal!=='new'?engModal:null)} stakeholders={stakes} onSave={handleSaveEng} onClose={()=>{setEngModal(null);setEditEngId(null)}}/>
         </Modal>
       )}
-
-      {/* Stakeholder modal */}
       {stakeModal!==null&&(
         <Modal title={editStakeId?'Edit stakeholder':'Add stakeholder'} onClose={()=>{setStakeModal(null);setEditStakeId(null)}}>
           <StakeholderForm initial={editStakeId?stakeModal:(stakeModal?.institution?stakeModal:null)} allInsts={allInsts} onSave={handleSaveStake} onClose={()=>{setStakeModal(null);setEditStakeId(null)}}/>
         </Modal>
       )}
-
       <Toast msg={toast}/>
     </div>
   )
