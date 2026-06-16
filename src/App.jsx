@@ -490,48 +490,38 @@ function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
     <div style={{ background:C.white,border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.black}`,padding:'14px 16px',marginBottom:16 }}>
       <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
         <button onClick={()=>setOpen(v=>!v)} style={{ display:'flex',alignItems:'center',gap:8,background:'none',border:'none',cursor:'pointer',padding:0,fontFamily:FONT }}>
-          <div style={{ fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.mid }}>Account details</div>
+          <div style={{ fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.mid,fontFamily:FONT }}>Account details</div>
           <span style={{ fontSize:12,color:C.light }}>{open?'▲':'▼'}</span>
         </button>
         {open&&<button onClick={onToggleEdit} style={{ background:'none',border:'none',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT }}>{showEdit?'Cancel':'Edit'}</button>}
       </div>
       {open&&<div style={{ marginTop:12 }}>
-      {showEdit?(
-        <>
-          <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10 }}>
-            {fields.map(f=>(
-              <div key={f.key}>
-                <FieldLabel>{f.label}</FieldLabel>
-                <input style={{ ...inp,marginBottom:0,fontSize:13 }} value={form[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.label}/>
-              </div>
-            ))}
-          </div>
-          <div style={{ display:'flex',justifyContent:'flex-end',gap:8,paddingTop:10,borderTop:`0.5px solid ${C.borderLight}` }}>
-            <Btn label="Save details" small onClick={()=>onSave(form)}/>
-          </div>
-        </>
-      ):hasData?(
-        <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px 16px' }}>
-          {fields.filter(f=>form[f.key]).map(f=>(
-            <div key={f.key} style={{ fontFamily:FONT }}>
-              <div style={{ fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,marginBottom:1 }}>{f.label}</div>
-              <div style={{ fontSize:13,fontWeight:500,color:C.black }}>{form[f.key]}</div>
-            </div>
-          ))}
-        </div>
-      ):(
-        {hasData
-          ? <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px 16px' }}>
-              {fields.filter(f=>form[f.key]).map(f=>(
-                <div key={f.key} style={{ fontFamily:FONT }}>
-                  <div style={{ fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,marginBottom:1 }}>{f.label}</div>
-                  <div style={{ fontSize:13,fontWeight:500,color:C.black }}>{form[f.key]}</div>
+        {showEdit?(
+          <>
+            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10 }}>
+              {fields.map(f=>(
+                <div key={f.key}>
+                  <FieldLabel>{f.label}</FieldLabel>
+                  <input style={{ ...inp,marginBottom:0,fontSize:13 }} value={form[f.key]} onChange={e=>setForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.label}/>
                 </div>
               ))}
             </div>
-          : <div style={{ fontSize:12,color:C.light,fontFamily:FONT }}>No account details yet — click Edit to add.</div>
-        }
-      )}
+            <div style={{ display:'flex',justifyContent:'flex-end',gap:8,paddingTop:10,borderTop:`0.5px solid ${C.borderLight}` }}>
+              <Btn label="Save details" small onClick={()=>onSave(form)}/>
+            </div>
+          </>
+        ):hasData?(
+          <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px 16px' }}>
+            {fields.filter(f=>form[f.key]).map(f=>(
+              <div key={f.key} style={{ fontFamily:FONT }}>
+                <div style={{ fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,marginBottom:1 }}>{f.label}</div>
+                <div style={{ fontSize:13,fontWeight:500,color:C.black }}>{form[f.key]}</div>
+              </div>
+            ))}
+          </div>
+        ):(
+          <div style={{ fontSize:12,color:C.light,fontFamily:FONT }}>No account details yet — click Edit to add.</div>
+        )}
       </div>}
     </div>
   )
