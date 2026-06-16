@@ -131,43 +131,63 @@ function Toast({ msg }) {
   if(!msg) return null
   return <div style={{ position:'fixed',bottom:24,left:'50%',transform:'translateX(-50%)',background:C.black,color:C.white,fontSize:12,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'10px 20px',borderTop:`3px solid ${C.accent}`,zIndex:9999,fontFamily:FONT }}>{msg}</div>
 }
-function PinScreen({ onUnlock }) {
-  const [pin,setPin] = React.useState('')
-  const [error,setError] = React.useState(false)
-  const [shake,setShake] = React.useState(false)
-  function handleKey(k){
-    if(pin.length>=6)return
-    const next=pin+k
-    setPin(next);setError(false)
-    if(next.length===4||next.length===5||next.length===6) checkPin(next)
+function AuthScreen({ onAuth }) {
+  const [mode,setMode]       = React.useState('login')
+  const [email,setEmail]     = React.useState('')
+  const [password,setPassword] = React.useState('')
+  const [name,setName]       = React.useState('')
+  const [error,setError]     = React.useState('')
+  const [loading,setLoading] = React.useState(false)
+  const [resetSent,setResetSent] = React.useState(false)
+
+  async function handleSubmit() {
+    setError('');setLoading(true)
+    try {
+      if(mode==='login'){
+        const{error:e}=await supabase.auth.signInWithPassword({email,password})
+        if(e) setError(e.message)
+      } else if(mode==='signup'){
+        if(!name.trim()){setError('Please enter your name');setLoading(false);return}
+        const{data,error:e}=await supabase.auth.signUp({email,password,options:{data:{full_name:name.trim()}}})
+        if(e) setError(e.message)
+        else if(data?.user?.identities?.length===0) setError('An account with this email already exists')
+        else setError('Check your email to confirm your account, then log in.')
+      } else if(mode==='reset'){
+        const{error:e}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin})
+        if(e) setError(e.message)
+        else setResetSent(true)
+      }
+    } catch(e){ setError(e.message) }
+    setLoading(false)
   }
-  function checkPin(val){
-    const correct=import.meta.env.VITE_APP_PIN||'1234'
-    if(val===correct){ sessionStorage.setItem('et_unlocked','1'); onUnlock() }
-    else if(val.length>=correct.length){ setShake(true);setError(true);setPin(''); setTimeout(()=>setShake(false),500) }
-  }
-  function del(){setPin(p=>p.slice(0,-1));setError(false)}
-  const pinLen=(import.meta.env.VITE_APP_PIN||'1234').length
+
+  const inp2={ width:'100%',padding:'12px 14px',border:`1px solid rgba(255,255,255,0.15)`,fontSize:14,fontFamily:FONT,background:'rgba(255,255,255,0.07)',color:C.white,outline:'none',borderRadius:0,display:'block',marginBottom:12,boxSizing:'border-box' }
+
   return(
-    <div style={{ minHeight:'100vh',background:C.black,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:FONT }}>
+    <div style={{ minHeight:'100vh',background:C.black,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',fontFamily:FONT,padding:20 }}>
       <div style={{ height:4,background:C.accent,position:'fixed',top:0,left:0,right:0 }}/>
-      <div style={{ fontSize:22,fontWeight:700,color:C.white,letterSpacing:-0.5,marginBottom:6 }}>Engagement Tracker</div>
-      <div style={{ fontSize:11,fontWeight:300,color:'rgba(255,255,255,0.3)',letterSpacing:2,textTransform:'uppercase',marginBottom:40 }}>Enter PIN to continue</div>
-      <div style={{ display:'flex',gap:14,marginBottom:32,transform:shake?'translateX(-8px)':'none',transition:'transform 0.1s' }}>
-        {Array.from({length:pinLen}).map((_,i)=>(
-          <div key={i} style={{ width:12,height:12,borderRadius:'50%',background:pin.length>i?(error?C.red:C.accent):'transparent',border:`2px solid ${pin.length>i?(error?C.red:C.accent):'rgba(255,255,255,0.3)'}`,transition:'background 0.15s' }}/>
-        ))}
-      </div>
-      {error&&<div style={{ fontSize:11,fontWeight:700,color:C.red,letterSpacing:1,textTransform:'uppercase',marginBottom:20 }}>Incorrect PIN</div>}
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(3,72px)',gap:12 }}>
-        {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((k,i)=>(
-          k===''?<div key={i}/>:
-          <button key={i} onClick={()=>k==='⌫'?del():handleKey(String(k))}
-            style={{ width:72,height:72,borderRadius:'50%',background:k==='⌫'?'transparent':'rgba(255,255,255,0.07)',border:`1px solid ${k==='⌫'?'transparent':'rgba(255,255,255,0.12)'}`,color:C.white,fontSize:k==='⌫'?20:22,fontWeight:k==='⌫'?400:300,cursor:'pointer',fontFamily:FONT,display:'flex',alignItems:'center',justifyContent:'center' }}
-            onMouseOver={e=>e.currentTarget.style.background=k==='⌫'?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.15)'}
-            onMouseOut={e=>e.currentTarget.style.background=k==='⌫'?'transparent':'rgba(255,255,255,0.07)'}
-          >{k}</button>
-        ))}
+      <div style={{ width:'100%',maxWidth:360 }}>
+        <div style={{ fontSize:22,fontWeight:700,color:C.white,letterSpacing:-0.5,marginBottom:4 }}>Engagement Tracker</div>
+        <div style={{ fontSize:11,fontWeight:300,color:'rgba(255,255,255,0.3)',letterSpacing:2,textTransform:'uppercase',marginBottom:32 }}>Adobe HED — APAC</div>
+        <div style={{ background:'rgba(255,255,255,0.04)',border:`1px solid rgba(255,255,255,0.1)`,borderTop:`3px solid ${C.accent}`,padding:24 }}>
+          <div style={{ fontSize:13,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.white,marginBottom:20 }}>
+            {mode==='login'?'Sign in':mode==='signup'?'Create account':'Reset password'}
+          </div>
+          {mode==='signup'&&<input style={inp2} placeholder="Your full name" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/>}
+          <input style={inp2} type="email" placeholder="Adobe email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/>
+          {mode!=='reset'&&<input style={{...inp2,marginBottom:20}} type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSubmit()}/>}
+          {error&&<div style={{ fontSize:12,color:error.startsWith('Check')?C.green:C.red,marginBottom:12,lineHeight:1.4 }}>{error}</div>}
+          {resetSent&&<div style={{ fontSize:12,color:C.green,marginBottom:12 }}>Reset link sent — check your email.</div>}
+          <button onClick={handleSubmit} disabled={loading} style={{ width:'100%',background:C.accent,border:'none',color:C.white,fontSize:13,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'12px 0',cursor:loading?'not-allowed':'pointer',fontFamily:FONT,opacity:loading?0.6:1 }}>
+            {loading?'Please wait…':mode==='login'?'Sign in':mode==='signup'?'Create account':'Send reset link'}
+          </button>
+          <div style={{ display:'flex',justifyContent:'space-between',marginTop:16 }}>
+            {mode==='login'&&<button onClick={()=>{setMode('signup');setError('')}} style={{ background:'none',border:'none',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:FONT,letterSpacing:0.5 }}>Create account</button>}
+            {mode==='signup'&&<button onClick={()=>{setMode('login');setError('')}} style={{ background:'none',border:'none',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:FONT,letterSpacing:0.5 }}>Back to sign in</button>}
+            {mode!=='reset'&&<button onClick={()=>{setMode('reset');setError('')}} style={{ background:'none',border:'none',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:FONT,letterSpacing:0.5 }}>Forgot password?</button>}
+            {mode==='reset'&&<button onClick={()=>{setMode('login');setError('')}} style={{ background:'none',border:'none',color:'rgba(255,255,255,0.4)',fontSize:11,cursor:'pointer',fontFamily:FONT,letterSpacing:0.5 }}>Back to sign in</button>}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -185,7 +205,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose }) {
   const [type,setType]       = useState(initial?.type||'Meeting')
   const [obj,setObj]         = useState(initial?.objective||'')
   const [status,setStatus]   = useState(initial?.status||'Active')
-  const [owner,setOwner]     = useState(initial?.owner||'Al Briggs')
+  const [owner,setOwner]     = useState(initial?.owner||'')
   const [notes,setNotes]     = useState(initial?.notes||'')
   const [actions,setActions] = useState(initial?.actions||[])
   const [showAdd,setShowAdd] = useState(false)
@@ -528,7 +548,9 @@ function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
 }
 
 // ── MainApp ─────────────────────────────────────────────────────────────────
-function MainApp() {
+function MainApp({ session }) {
+  const currentUser = session?.user
+  const userName = currentUser?.user_metadata?.full_name || currentUser?.email?.split('@')[0] || 'User'
   const [tab,setTab]               = useState('overview')
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth < 768
@@ -571,7 +593,7 @@ function MainApp() {
     async function load(){
       setLoading(true)
       const [{data:eRows},{data:sRows},{data:mRow},{data:iRows}] = await Promise.all([
-        supabase.from('engagements').select('*').order('date',{ascending:false}),
+        supabase.from('engagements').select('*').eq('user_id',currentUser?.id||'').order('date',{ascending:false}),
         supabase.from('stakeholders').select('*').order('name'),
         supabase.from('et_meta').select('*').eq('id','singleton').single(),
         supabase.from('institutions').select('*'),
@@ -593,7 +615,7 @@ function MainApp() {
   },[])
 
   async function upsertEng(data,id){
-    const row={...data,updated_at:new Date().toISOString()};if(id)row.id=id
+    const row={...data,user_id:currentUser?.id,updated_at:new Date().toISOString()};if(id)row.id=id
     const{data:saved}=await supabase.from('engagements').upsert(row).select().single()
     setEngs(p=>id?p.map(e=>e.id===id?saved:e):[saved,...p])
     return saved
@@ -824,7 +846,13 @@ function MainApp() {
       <div style={{ height:4,background:C.accent,position:'fixed',top:0,left:0,right:0,zIndex:300 }}/>
       <div style={{ background:C.black,borderBottom:`4px solid ${C.accent}`,paddingTop:4,position:'fixed',top:0,left:0,right:0,zIndex:200 }}>
         <div style={{ padding:isMobile?'12px 16px 0':'16px 24px 0' }}>
-          <div style={{ fontSize:isMobile?18:24,fontWeight:700,letterSpacing:-0.5,color:C.white,fontFamily:FONT }}>Engagement Tracker — Al</div>
+          <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+            <div style={{ fontSize:isMobile?18:24,fontWeight:700,letterSpacing:-0.5,color:C.white,fontFamily:FONT }}>Engagement Tracker</div>
+            <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+              <div style={{ fontSize:11,fontWeight:300,color:'rgba(255,255,255,0.4)',fontFamily:FONT }}>{userName}</div>
+              <button onClick={()=>supabase.auth.signOut()} style={{ background:'none',border:`1px solid rgba(255,255,255,0.15)`,color:'rgba(255,255,255,0.4)',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 8px',cursor:'pointer',fontFamily:FONT }}>Sign out</button>
+            </div>
+          </div>
           <div style={{ fontSize:11,fontWeight:300,color:'rgba(255,255,255,0.35)',marginTop:4,paddingBottom:12,fontFamily:FONT }}>
             {engs.length} engagement{engs.length!==1?'s':''}<span style={{ color:C.accent }}> | </span>
             {allInsts.length} institution{allInsts.length!==1?'s':''}<span style={{ color:C.accent }}> | </span>
@@ -1217,7 +1245,25 @@ function MainApp() {
 }
 
 export default function App() {
-  const [unlocked,setUnlocked] = useState(()=>sessionStorage.getItem('et_unlocked')==='1')
-  if(!unlocked) return <PinScreen onUnlock={()=>setUnlocked(true)}/>
-  return <MainApp/>
+  const [session,setSession] = useState(null)
+  const [checking,setChecking] = useState(true)
+
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data:{session}})=>{
+      setSession(session);setChecking(false)
+    })
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>{
+      setSession(session)
+    })
+    return ()=>subscription.unsubscribe()
+  },[])
+
+  if(checking) return(
+    <div style={{ fontFamily:FONT,background:C.black,minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:12 }}>
+      <div style={{ height:4,background:C.accent,width:40 }}/>
+      <div style={{ color:'rgba(255,255,255,0.35)',fontSize:13,fontWeight:300,letterSpacing:1 }}>Loading</div>
+    </div>
+  )
+  if(!session) return <AuthScreen onAuth={setSession}/>
+  return <MainApp session={session}/>
 }
