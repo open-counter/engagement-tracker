@@ -474,6 +474,7 @@ function ActivityTimeline({ engs }) {
 
 // ── InstProfile ─────────────────────────────────────────────────────────────
 function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
+  const [open,setOpen] = React.useState(false)
   const [form,setForm] = React.useState({
     parent_name:data.parent_name||'',parent_id:data.parent_id||'',
     org_id:data.org_id||'',domain:data.domain||'',
@@ -481,15 +482,20 @@ function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
   })
   React.useEffect(()=>{
     setForm({ parent_name:data.parent_name||'',parent_id:data.parent_id||'',org_id:data.org_id||'',domain:data.domain||'',sub_id:data.sub_id||'',sub_name:data.sub_name||'' })
+    setOpen(false)
   },[name])
   const hasData=Object.values(form).some(v=>v.trim())
   const fields=[{key:'parent_name',label:'Parent Name'},{key:'parent_id',label:'Parent ID'},{key:'org_id',label:'Org ID'},{key:'domain',label:'Domain'},{key:'sub_id',label:'SUB ID'},{key:'sub_name',label:'SUB Name'}]
   return(
     <div style={{ background:C.white,border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.black}`,padding:'14px 16px',marginBottom:16 }}>
-      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:showEdit||hasData?12:0 }}>
-        <div style={{ fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.mid,fontFamily:FONT }}>Account details</div>
-        <button onClick={onToggleEdit} style={{ background:'none',border:'none',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT }}>{showEdit?'Cancel':'Edit'}</button>
+      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+        <button onClick={()=>setOpen(v=>!v)} style={{ display:'flex',alignItems:'center',gap:8,background:'none',border:'none',cursor:'pointer',padding:0,fontFamily:FONT }}>
+          <div style={{ fontSize:10,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.mid }}>Account details</div>
+          <span style={{ fontSize:12,color:C.light }}>{open?'▲':'▼'}</span>
+        </button>
+        {open&&<button onClick={onToggleEdit} style={{ background:'none',border:'none',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT }}>{showEdit?'Cancel':'Edit'}</button>}
       </div>
+      {open&&<div style={{ marginTop:12 }}>
       {showEdit?(
         <>
           <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginBottom:10 }}>
@@ -514,8 +520,19 @@ function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
           ))}
         </div>
       ):(
-        <div style={{ fontSize:12,color:C.light,fontFamily:FONT }}>No account details yet — click Edit to add.</div>
+        {hasData
+          ? <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px 16px' }}>
+              {fields.filter(f=>form[f.key]).map(f=>(
+                <div key={f.key} style={{ fontFamily:FONT }}>
+                  <div style={{ fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.light,marginBottom:1 }}>{f.label}</div>
+                  <div style={{ fontSize:13,fontWeight:500,color:C.black }}>{form[f.key]}</div>
+                </div>
+              ))}
+            </div>
+          : <div style={{ fontSize:12,color:C.light,fontFamily:FONT }}>No account details yet — click Edit to add.</div>
+        }
       )}
+      </div>}
     </div>
   )
 }
@@ -1062,7 +1079,10 @@ function MainApp() {
                     {/* Activity Timeline */}
                     <div style={{ marginTop:24 }}>
                       <SectionHead label="Activity timeline" right={
-                        <button onClick={()=>setShowTimeline(v=>!v)} style={{ background:'none',border:'none',fontSize:13,cursor:'pointer',color:C.light,lineHeight:1,padding:0,fontFamily:FONT }}>{showTimeline?'▲':'▼'}</button>
+                        <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+                          {instEngs.length>0&&<button onClick={()=>exportInstCSV(selInst,instEngs,stakes)} style={{ fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,background:'none',border:`1px solid ${C.accent}`,padding:'3px 8px',cursor:'pointer',fontFamily:FONT }}>↓ CSV</button>}
+                          <button onClick={()=>setShowTimeline(v=>!v)} style={{ background:'none',border:'none',fontSize:13,cursor:'pointer',color:C.light,lineHeight:1,padding:0,fontFamily:FONT }}>{showTimeline?'▲':'▼'}</button>
+                        </div>
                       }/>
                       {showTimeline&&<ActivityTimeline engs={instEngs}/>}
                     </div>
@@ -1122,6 +1142,60 @@ function MainApp() {
       <Toast msg={toast}/>
     </div>
   )
+
+  function exportInstCSV(instName, engList, stakeList) {
+    const rows = []
+    engList.forEach(e => {
+      const s = stakeList.find(x => x.id === e.stakeholder_id)
+      const base = {
+        'Event Title':            e.event_title || '',
+        'Institution':            e.institution,
+        'Stakeholder':            e.stakeholder_name,
+        'Additional Stakeholders':e.additional_stakeholders || '',
+        'Role':                   s?.role || '',
+        'Date':                   e.date,
+        'Type':                   e.type,
+        'Objective':              e.objective || '',
+        'Activity Category':      e.act_category || '',
+        'Engagement Vector':      e.eng_vector || '',
+        'Activity Format':        e.act_format || '',
+        'Activity Type':          e.act_type || '',
+        'Target Audience':        e.target_audience || '',
+        'Activity Location':      e.act_location || '',
+        'Status':                 e.status,
+        'Owner':                  e.owner || '',
+        'Travel Needed':          e.travel_needed ? 'Yes' : 'No',
+        'Travel Justification':   e.travel_justification || '',
+        'Travel Cost':            e.travel_cost || '',
+        'Travel Start':           e.travel_start || '',
+        'Travel End':             e.travel_end || '',
+        'Notes':                  e.notes || '',
+        'In SharePoint':          e.sharepoint_submitted ? 'Yes' : 'No',
+        'Source':                 e.synced_email_id ? 'Email sync' : 'Manual',
+      }
+      const acts = e.actions || []
+      if (!acts.length) rows.push({ ...base, 'Action': '', 'Priority': '', 'Action Status': '' })
+      else acts.forEach((a, i) => rows.push({
+        ...(i === 0 ? base : Object.fromEntries(Object.keys(base).map(k => [k, '']))),
+        'Action': a.text, 'Priority': a.priority, 'Action Status': a.done ? 'Complete' : 'Open'
+      }))
+    })
+    const headers = Object.keys(rows[0] || {})
+    const csvRows = [
+      headers.join(','),
+      ...rows.map(r => headers.map(h => {
+        const val = String(r[h] || '').replace(/"/g, '""')
+        return val.includes(',') || val.includes('"') || val.includes('\n') ? `"${val}"` : val
+      }).join(','))
+    ]
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${instName.replace(/[^a-z0-9]/gi,'_')}_engagements.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   function exportXLSX(){
     import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js').then(XLSX=>{
