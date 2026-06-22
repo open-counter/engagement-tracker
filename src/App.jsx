@@ -198,14 +198,14 @@ function Avatar({ name, size=32 }) {
 }
 
 // ── Engagement form ─────────────────────────────────────────────────────────
-function EngagementForm({ initial, stakeholders, onSave, onClose }) {
+function EngagementForm({ initial, stakeholders, onSave, onClose, userName }) {
   const [inst,setInst]       = useState(initial?.institution||'')
   const [stakeId,setStakeId] = useState(initial?.stakeholder_id||'')
   const [date,setDate]       = useState(initial?.date||new Date().toISOString().slice(0,10))
   const [type,setType]       = useState(initial?.type||'Meeting')
   const [obj,setObj]         = useState(initial?.objective||'')
   const [status,setStatus]   = useState(initial?.status||'Active')
-  const [owner,setOwner]     = useState(initial?.owner||'')
+  const [owner,setOwner]     = useState(initial?.owner||userName||'')
   const [notes,setNotes]     = useState(initial?.notes||'')
   const [actions,setActions] = useState(initial?.actions||[])
   const [showAdd,setShowAdd] = useState(false)
@@ -1030,7 +1030,7 @@ function MainApp({ session }) {
                     {showEngForm&&(
                       <div style={{ background:'#F7F7F5',border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${C.accent}`,padding:16,marginBottom:16 }}>
                         <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.accent,marginBottom:14,fontFamily:FONT }}>New engagement — {selInst}</div>
-                        <EngagementForm initial={{ institution:selInst }} stakeholders={instStakes} onSave={d=>{handleSaveEng(d);setShowEngForm(false)}} onClose={()=>setShowEngForm(false)}/>
+                        <EngagementForm initial={{ institution:selInst }} stakeholders={instStakes} onSave={d=>{handleSaveEng(d);setShowEngForm(false)}} onClose={()=>setShowEngForm(false)} userName={userName}/>
                       </div>
                     )}
                     {showStakeForm&&(
@@ -1149,7 +1149,7 @@ function MainApp({ session }) {
 
       {engModal&&(
         <Modal title={editEngId?'Edit engagement':'Log engagement'} onClose={()=>{setEngModal(null);setEditEngId(null)}}>
-          <EngagementForm initial={editEngId?engModal:(engModal!=='new'?engModal:null)} stakeholders={stakes} onSave={handleSaveEng} onClose={()=>{setEngModal(null);setEditEngId(null)}}/>
+          <EngagementForm initial={editEngId?engModal:(engModal!=='new'?engModal:null)} stakeholders={stakes} onSave={handleSaveEng} onClose={()=>{setEngModal(null);setEditEngId(null)}} userName={userName}/>
         </Modal>
       )}
       {stakeModal!==null&&(
