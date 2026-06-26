@@ -68,6 +68,18 @@ function isOverdue(dateStr){
   const now=new Date()
   return (now-d)/(1000*60*60*24)>14
 }
+function isActionOverdue(action, engDate){
+  if(action.done) return false
+  const ref = action.due_date || null
+  if(ref){
+    return (new Date()-new Date(ref))/(1000*60*60*24) > 0
+  }
+  return isOverdue(engDate)
+}
+function daysOpen(dateStr){
+  if(!dateStr) return 0
+  return Math.floor((new Date()-new Date(dateStr))/(1000*60*60*24))
+}
 
 const DOMAIN_MAP = {
   'latrobe.edu.au':'LTU','sa.gov.au':'SA Government — Education',
@@ -230,7 +242,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose, userName }) {
   const instS = inst ? allS.filter(s=>s.institution?.toLowerCase()===inst.toLowerCase()&&s.name!=='(Add stakeholder)') : allS.filter(s=>s.name!=='(Add stakeholder)')
   const allInsts = [...new Set(stakeholders.map(s=>s.institution).filter(Boolean))].sort()
 
-  function addAction() { setActions(a=>[...a,{id:Date.now().toString(),text:'',priority:'Medium',done:false}]) }
+  function addAction() { setActions(a=>[...a,{id:Date.now().toString(),text:'',priority:'Medium',done:false,due_date:'',completed_at:''}]) }
   function updAction(id,k,v) { setActions(a=>a.map(x=>x.id===id?{...x,[k]:v}:x)) }
   function delAction(id) { setActions(a=>a.filter(x=>x.id!==id)) }
   function saveInline() {
@@ -312,7 +324,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose, userName }) {
             if(actionMatch){
               const lines=actionMatch[1].split('\n').map(l=>l.replace(/^[-•*\d.]+\s*/,'')).filter(l=>l.trim().length>5)
               if(lines.length>0){
-                const newActions=lines.slice(0,6).map((text,i)=>({id:Date.now().toString()+i,text:text.trim(),priority:'Medium',done:false}))
+                const newActions=lines.slice(0,6).map((text,i)=>({id:Date.now().toString()+i,text:text.trim(),priority:'Medium',done:false,due_date:'',completed_at:''}))
                 setActions(prev=>[...prev,...newActions])
               }
             }
@@ -325,6 +337,7 @@ function EngagementForm({ initial, stakeholders, onSave, onClose, userName }) {
     <div style={{ marginBottom:6 }}>
       {actions.map(a=><div key={a.id} style={{ display:'flex',gap:6,alignItems:'center',marginBottom:6 }}>
         <input style={{ ...inp,flex:1,marginBottom:0 }} placeholder="Describe next step…" value={a.text} onChange={e=>updAction(a.id,'text',e.target.value)}/>
+        <input type="date" style={{ ...inp,width:140,marginBottom:0,fontSize:12 }} title="Due date" value={a.due_date||''} onChange={e=>updAction(a.id,'due_date',e.target.value)}/>
         <select style={{ ...sel,width:120,marginBottom:0 }} value={a.priority} onChange={e=>updAction(a.id,'priority',e.target.value)}>{PRIORITIES.map(p=><option key={p}>{p}</option>)}</select>
         <Btn label="×" small danger onClick={()=>delAction(a.id)}/>
       </div>)}
@@ -411,10 +424,18 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
     {eng.notes&&<div style={{ fontSize:13,color:isClosed?'#bbb':C.mid,marginBottom:8,lineHeight:1.6,fontFamily:FONT }}>{eng.notes}</div>}
     {(eng.actions||[]).length>0&&<div style={{ borderTop:`0.5px solid ${C.borderLight}`,paddingTop:8 }}>
       {(eng.actions||[]).map(a=>{
-        const overdue=!a.done&&!isClosed&&isOverdue(eng.date)
-        return <div key={a.id} style={{ display:'flex',alignItems:'center',gap:8,padding:'4px 0',fontSize:13,fontFamily:FONT }}>
+        const overdue=!a.done&&!isClosed&&isActionOverdue(a,eng.date)
+        const dueLabel=a.due_date?fmtDate(a.due_date):null
+        const completedLabel=a.done&&a.completed_at?fmtDate(a.completed_at):null
+        return <div key={a.id} style={{ display:'flex',alignItems:'center',gap:8,padding:'5px 0',fontSize:13,fontFamily:FONT,borderBottom:`0.5px solid ${C.borderLight}` }}>
           <div style={{ width:7,height:7,borderRadius:'50%',background:a.done||isClosed?'#ccc':overdue?C.red:(PRI_C[a.priority]||C.amber),flexShrink:0 }}/>
-          <span style={{ flex:1,color:isClosed||a.done?'#bbb':overdue?C.red:C.black,textDecoration:a.done?'line-through':'none',fontWeight:overdue?700:400 }}>{a.text}{overdue?' ⚠':''}</span>
+          <div style={{ flex:1,minWidth:0 }}>
+            <span style={{ color:isClosed||a.done?'#bbb':overdue?C.red:C.black,textDecoration:a.done?'line-through':'none',fontWeight:overdue?700:400 }}>{a.text}{overdue?' ⚠':''}</span>
+            <div style={{ display:'flex',gap:8,marginTop:2,flexWrap:'wrap' }}>
+              {dueLabel&&!a.done&&<span style={{ fontSize:10,color:overdue?C.red:C.light,fontFamily:FONT }}>Due: {dueLabel}</span>}
+              {completedLabel&&<span style={{ fontSize:10,color:C.green,fontFamily:FONT }}>✓ Completed {completedLabel}</span>}
+            </div>
+          </div>
           <Tag color={a.done||isClosed?'#ccc':(PRI_C[a.priority]||C.amber)}>{a.priority}</Tag>
           {!isClosed&&<button
             onClick={()=>onToggleAction(eng.id,a.id)}
@@ -792,7 +813,8 @@ function MainApp({ session }) {
   }
   async function toggleAction(engId,actionId){
     const e=engs.find(x=>x.id===engId);if(!e)return
-    const newActions=(e.actions||[]).map(a=>a.id===actionId?{...a,done:!a.done}:a)
+    const now=new Date().toISOString().slice(0,10)
+    const newActions=(e.actions||[]).map(a=>a.id===actionId?{...a,done:!a.done,completed_at:!a.done?now:(a.completed_at||'')}:a)
     await supabase.from('engagements').update({actions:newActions}).eq('id',engId)
     setEngs(p=>p.map(x=>x.id===engId?{...x,actions:newActions}:x))
     const a=newActions.find(x=>x.id===actionId)
@@ -883,7 +905,11 @@ function MainApp({ session }) {
                         <span style={{ color:C.accent,fontSize:13,fontWeight:300,margin:'0 6px' }}>|</span>
                         <span style={{ fontSize:13,fontWeight:600,color:C.black }}>{a.text}</span>
                       </div>
-                      <div style={{ fontSize:11,color:C.light,marginTop:2,fontFamily:FONT }}>{a.inst}<span style={{ color:C.accent }}> · </span>{a.stake}</div>
+                      <div style={{ display:'flex',gap:8,alignItems:'center',marginTop:2,flexWrap:'wrap' }}>
+                        <span style={{ fontSize:11,color:C.light,fontFamily:FONT }}>{a.inst}<span style={{ color:C.accent }}> · </span>{a.stake}</span>
+                        {a.due_date&&<span style={{ fontSize:10,fontWeight:700,color:isActionOverdue(a,a.date)?C.red:C.amber,fontFamily:FONT }}>Due {fmtDate(a.due_date)}</span>}
+                        {!a.due_date&&daysOpen(a.date)>0&&<span style={{ fontSize:10,color:C.light,fontFamily:FONT }}>{daysOpen(a.date)}d open</span>}
+                      </div>
                     </div>
                     <Tag color={PRI_C[a.priority]||C.amber}>{a.priority}</Tag>
                   </div>
@@ -1195,7 +1221,7 @@ function MainApp({ session }) {
       if (!acts.length) rows.push({ ...base, 'Action': '', 'Priority': '', 'Action Status': '' })
       else acts.forEach((a, i) => rows.push({
         ...(i === 0 ? base : Object.fromEntries(Object.keys(base).map(k => [k, '']))),
-        'Action': a.text, 'Priority': a.priority, 'Action Status': a.done ? 'Complete' : 'Open'
+        'Action': a.text, 'Priority': a.priority, 'Action Status': a.done ? 'Complete' : 'Open', 'Due Date': a.due_date||'', 'Completed': a.completed_at||''
       }))
     })
     const headers = Object.keys(rows[0] || {})
@@ -1223,7 +1249,7 @@ function MainApp({ session }) {
         const base={'Event Title':e.event_title||'',Institution:e.institution,Stakeholder:e.stakeholder_name,'Additional Stakeholders':e.additional_stakeholders||'',Role:s?.role||'',Date:e.date,Type:e.type,Objective:e.objective||'','Activity Category':e.act_category||'','Engagement Vector':e.eng_vector||'','Activity Format':e.act_format||'','Activity Type':e.act_type||'','Target Audience':e.target_audience||'','Activity Location':e.act_location||'',Status:e.status,Owner:e.owner||'','Travel Needed':e.travel_needed?'Yes':'No','Travel Justification':e.travel_justification||'','Travel Cost':e.travel_cost||'','Travel Start':e.travel_start||'','Travel End':e.travel_end||'',Notes:e.notes||'',Source:e.synced_email_id?'Email sync':'Manual'}
         const acts=e.actions||[]
         if(!acts.length)rows.push({...base,'Action/Next step':'',Priority:'','Action status':''})
-        else acts.forEach((a,i)=>rows.push({...(i===0?base:Object.fromEntries(Object.keys(base).map(k=>[k,'']))),'Action/Next step':a.text,Priority:a.priority,'Action status':a.done?'Complete':'Open'}))
+        else acts.forEach((a,i)=>rows.push({...(i===0?base:Object.fromEntries(Object.keys(base).map(k=>[k,'']))),'Action/Next step':a.text,Priority:a.priority,'Action status':a.done?'Complete':'Open','Due date':a.due_date||'','Completed':a.completed_at||''}))
       })
       const ws=XLSX.utils.json_to_sheet(rows)
       ws['!cols']=[28,22,22,24,20,12,12,28,32,20,20,16,16,16,12,16,24,10,12,12,40,10,32,10,12].map(w=>({wch:w}))
