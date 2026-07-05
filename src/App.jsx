@@ -780,6 +780,21 @@ function MainApp({ session }) {
   const allInsts=[...new Set([...instOrder,...engs.map(e=>e.institution),...stakes.map(s=>s.institution)].filter(Boolean))]
   const allActs=engs.flatMap(e=>((e.actions&&Array.isArray(e.actions)?e.actions:[])).map(a=>({...a,inst:e.institution,stake:e.stakeholder_name,date:e.date,engId:e.id})))
   const openActs=allActs.filter(a=>!a.done).sort((a,b)=>a.date.localeCompare(b.date))
+  // Due soon: open actions with a due_date within the next 7 days (and not overdue)
+  const today=new Date();today.setHours(0,0,0,0)
+  const in7=new Date(today);in7.setDate(in7.getDate()+7)
+  const dueSoon=allActs.filter(a=>{
+    if(a.done||!a.due_date)return false
+    const d=new Date(a.due_date);d.setHours(0,0,0,0)
+    return d>=today&&d<=in7
+  }).sort((a,b)=>a.due_date.localeCompare(b.due_date))
+  // Last contact per institution (most recent engagement date)
+  const lastContact={}
+  engs.forEach(e=>{ if(!lastContact[e.institution]||e.date>lastContact[e.institution]) lastContact[e.institution]=e.date })
+  // Institutions with a future-dated engagement planned
+  const todayStr=new Date().toISOString().slice(0,10)
+  const hasFuture={}
+  engs.forEach(e=>{ if(e.date>todayStr) hasFuture[e.institution]=true })
 
   async function handleSaveEng(formData){
     const tmpToReal={}
@@ -839,7 +854,7 @@ function MainApp({ session }) {
     setSelInst(name);showToast(`✓ ${name} added`)
   }
 
-  const tabs=[{id:'overview',label:'Overview'},{id:'institutions',label:'Institutions'},{id:'stakeholders',label:'Stakeholders'}]
+  const tabs=[{id:'overview',label:'Overview'},{id:'institutions',label:'Institutions'},{id:'qbr',label:'QBR'},{id:'stakeholders',label:'Stakeholders'}]
 
   if(loading)return(
     <div style={{ fontFamily:FONT,background:C.black,minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:12 }}>
@@ -881,7 +896,7 @@ function MainApp({ session }) {
             {stakes.length} stakeholder{stakes.length!==1?'s':''}
           </div>
           <div style={{ display:'flex',alignItems:'flex-end',width:'100%' }}>
-            {[tabs[0],tabs[1],tabs[2]].map((t,i)=><button key={t.id} onClick={()=>setTab(t.id)} style={{ padding:'10px 0',marginRight:i<1?32:0,marginLeft:i===2?'auto':0,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:tab===t.id?C.white:C.accent,background:'transparent',border:'none',borderBottom:tab===t.id?`2px solid ${C.accent}`:'2px solid transparent',marginBottom:-1,cursor:'pointer',fontFamily:FONT }}>{t.label}</button>)}
+            {tabs.map((t,i)=><button key={t.id} onClick={()=>setTab(t.id)} style={{ padding:'10px 0',marginRight:i<2?32:0,marginLeft:i===3?'auto':0,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:tab===t.id?C.white:C.accent,background:'transparent',border:'none',borderBottom:tab===t.id?`2px solid ${C.accent}`:'2px solid transparent',marginBottom:-1,cursor:'pointer',fontFamily:FONT }}>{t.label}</button>)}
           </div>
         </div>
       </div>
@@ -895,6 +910,19 @@ function MainApp({ session }) {
                 <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.accent,fontFamily:FONT }}>Open actions</div>
                 <div style={{ fontSize:11,fontWeight:700,color:C.red }}>{openActs.length} pending</div>
               </div>
+              {dueSoon.length>0&&<div style={{ background:'#FFF8E1',borderBottom:`1px solid ${C.borderLight}`,padding:'12px 16px' }}>
+                <div style={{ fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.amber,marginBottom:8,fontFamily:FONT }}>⏰ Due in next 7 days — {dueSoon.length}</div>
+                {dueSoon.map((a,i)=>(
+                  <div key={i} style={{ display:'flex',alignItems:'flex-start',gap:8,padding:'4px 0',fontFamily:FONT }}>
+                    <div style={{ width:6,height:6,borderRadius:'50%',background:C.amber,marginTop:5,flexShrink:0 }}/>
+                    <div style={{ flex:1,minWidth:0 }}>
+                      <div style={{ fontSize:12,fontWeight:600,color:C.black }}>{a.text}</div>
+                      <div style={{ fontSize:10,color:C.mid,marginTop:1 }}>{a.inst}<span style={{ color:C.accent }}> · </span>Due {fmtDate(a.due_date)}</div>
+                    </div>
+                    <button onClick={()=>toggleAction(a.engId,a.id)} style={{ background:'transparent',border:`1px solid ${C.amber}`,padding:'2px 7px',fontSize:10,fontWeight:700,letterSpacing:'0.5px',textTransform:'uppercase',cursor:'pointer',fontFamily:FONT,color:C.amber,whiteSpace:'nowrap' }}>Done</button>
+                  </div>
+                ))}
+              </div>}
               {openActs.length?openActs.map((a,i)=>(
                 <div key={i} style={{ padding:'12px 16px',borderBottom:`0.5px solid ${C.borderLight}` }}>
                   <div style={{ display:'flex',alignItems:'flex-start',gap:8 }}>
@@ -1010,6 +1038,14 @@ function MainApp({ session }) {
                       <div style={{ fontSize:11,fontWeight:300,color:C.light,marginTop:2,fontFamily:FONT,lineHeight:1.6 }}>
                         {open>0?<span style={{ color:C.red,fontWeight:700 }}>{open} open engagement{open!==1?'s':''}</span>:<span style={{ color:C.green }}>No open engagements</span>}
                       </div>
+                      {(()=>{
+                        const lc=lastContact[name]
+                        const days=lc?Math.floor((new Date()-new Date(lc))/(1000*60*60*24)):null
+                        const cold=days!==null&&days>60&&!hasFuture[name]
+                        return <div style={{ fontSize:10,fontWeight:cold?700:300,color:cold?C.amber:C.light,marginTop:2,fontFamily:FONT }}>
+                          {lc?<>Last contact {days}d ago{cold?' · ❄ cold':''}{hasFuture[name]?' · ✓ next planned':''}</>:'No engagements yet'}
+                        </div>
+                      })()}
                     </div>
                   </div>
                   {open>0&&<div style={{ position:'absolute',top:14,right:14,background:C.red,color:C.white,fontSize:9,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'2px 7px' }}>{open} open</div>}
@@ -1137,6 +1173,83 @@ function MainApp({ session }) {
           </div>
         )}
 
+        {tab==='qbr'&&(()=>{
+          // Last 90 days
+          const cutoff=new Date();cutoff.setDate(cutoff.getDate()-90)
+          const cutoffStr=cutoff.toISOString().slice(0,10)
+          const recentEngs=engs.filter(e=>e.date>=cutoffStr)
+          // Group by institution
+          const byInst={}
+          recentEngs.forEach(e=>{
+            if(!byInst[e.institution])byInst[e.institution]={inst:e.institution,total:0,byObjective:{},byType:{},actions:0,doneActions:0,stakeholders:new Set(),sharepoint:0}
+            const b=byInst[e.institution]
+            b.total++
+            if(e.objective)b.byObjective[e.objective]=(b.byObjective[e.objective]||0)+1
+            if(e.type)b.byType[e.type]=(b.byType[e.type]||0)+1
+            b.stakeholders.add(e.stakeholder_name)
+            if(e.sharepoint_submitted)b.sharepoint++
+            ;(e.actions||[]).forEach(a=>{b.actions++;if(a.done)b.doneActions++})
+          })
+          const sorted=Object.values(byInst).sort((a,b)=>b.total-a.total)
+          const totalEngs=recentEngs.length
+          const totalActions=recentEngs.flatMap(e=>e.actions||[]).length
+          const totalDone=recentEngs.flatMap(e=>e.actions||[]).filter(a=>a.done).length
+          const objCounts={}
+          recentEngs.forEach(e=>{if(e.objective)objCounts[e.objective]=(objCounts[e.objective]||0)+1})
+
+          return <div style={{ padding:isMobile?'16px':'20px 24px',maxWidth:1000 }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,flexWrap:'wrap',gap:12 }}>
+              <div>
+                <div style={{ fontSize:20,fontWeight:700,color:C.black,fontFamily:FONT }}>Quarterly Business Review</div>
+                <div style={{ fontSize:12,color:C.light,fontFamily:FONT,marginTop:2 }}>Last 90 days · {cutoffStr} to {todayStr}</div>
+              </div>
+              <Btn label="↓ Export QBR CSV" small ghost onClick={()=>exportQBR(sorted,cutoffStr)}/>
+            </div>
+
+            {/* Summary stats */}
+            <div style={{ display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:1,background:C.border,border:`0.5px solid ${C.border}`,marginBottom:24 }}>
+              {[{v:totalEngs,l:'Engagements',c:C.accent},{v:sorted.length,l:'Active institutions'},{v:totalActions,l:'Actions logged'},{v:totalActions?Math.round(totalDone/totalActions*100)+'%':'—',l:'Actions completed',c:C.green}].map(({v,l,c})=>(
+                <div key={l} style={{ background:C.white,padding:'14px 16px' }}>
+                  <div style={{ fontSize:28,fontWeight:700,color:c||C.black,lineHeight:1,fontFamily:FONT }}>{v}</div>
+                  <div style={{ fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.light,marginTop:4,fontFamily:FONT }}>{l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Objectives coverage */}
+            <SectionHead label="Engagement by objective"/>
+            <div style={{ marginBottom:24 }}>
+              {OBJECTIVES.map(o=>{
+                const count=objCounts[o]||0
+                const pct=totalEngs?Math.round(count/totalEngs*100):0
+                return <div key={o} style={{ display:'flex',alignItems:'center',gap:12,marginBottom:8,fontFamily:FONT }}>
+                  <div style={{ width:isMobile?120:200,fontSize:12,color:count?C.black:C.light,fontWeight:count?600:300,flexShrink:0 }}>{o}</div>
+                  <div style={{ flex:1,height:18,background:'#f0f0f0',position:'relative' }}>
+                    <div style={{ position:'absolute',left:0,top:0,bottom:0,width:`${pct}%`,background:OBJ_C[o]||C.accent,minWidth:count?2:0 }}/>
+                  </div>
+                  <div style={{ width:60,fontSize:12,fontWeight:700,color:C.black,textAlign:'right',flexShrink:0 }}>{count} · {pct}%</div>
+                </div>
+              })}
+            </div>
+
+            {/* Per-institution breakdown */}
+            <SectionHead label="By institution"/>
+            {sorted.length?sorted.map(b=>(
+              <div key={b.inst} style={{ background:C.white,border:`0.5px solid ${C.border}`,borderLeft:`3px solid ${instColor(b.inst)}`,padding:'14px 16px',marginBottom:8 }}>
+                <div style={{ display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:12,marginBottom:8,flexWrap:'wrap' }}>
+                  <div style={{ fontSize:15,fontWeight:700,color:C.black,fontFamily:FONT }}>{b.inst}</div>
+                  <div style={{ fontSize:12,color:C.mid,fontFamily:FONT }}>{b.total} engagement{b.total!==1?'s':''}<SEP/>{b.stakeholders.size} stakeholder{b.stakeholders.size!==1?'s':''}<SEP/>{b.doneActions}/{b.actions} actions done<SEP/>{b.sharepoint} in SharePoint</div>
+                </div>
+                <div style={{ display:'flex',gap:5,flexWrap:'wrap' }}>
+                  {Object.entries(b.byObjective).sort((a,b)=>b[1]-a[1]).map(([o,c])=>(
+                    <Tag key={o} color={OBJ_C[o]||C.mid}>{o} · {c}</Tag>
+                  ))}
+                </div>
+              </div>
+            )):<div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>No engagements in the last 90 days.</div>}
+          </div>
+        })()}
+
         {tab==='stakeholders'&&(
           <div style={{ padding:isMobile?'16px':'20px 24px',maxWidth:960 }}>
             <div style={{ display:'flex',gap:8,marginBottom:14,flexWrap:'wrap',alignItems:'center' }}>
@@ -1186,6 +1299,36 @@ function MainApp({ session }) {
       <Toast msg={toast}/>
     </div>
   )
+
+  function exportQBR(sorted, cutoffStr) {
+    const rows = sorted.map(b => ({
+      'Institution':        b.inst,
+      'Engagements (90d)':  b.total,
+      'Stakeholders':       b.stakeholders.size,
+      'Actions logged':     b.actions,
+      'Actions completed':  b.doneActions,
+      'In SharePoint':      b.sharepoint,
+      'Objectives covered': Object.keys(b.byObjective).join('; '),
+      'Types':              Object.entries(b.byType).map(([t,c])=>`${t}:${c}`).join('; '),
+    }))
+    const headers = Object.keys(rows[0] || {'Institution':''})
+    const csvRows = [
+      `QBR Report - Last 90 days (from ${cutoffStr})`,
+      '',
+      headers.join(','),
+      ...rows.map(r => headers.map(h => {
+        const val = String(r[h] ?? '').replace(/"/g, '""')
+        return val.includes(',') || val.includes('"') ? `"${val}"` : val
+      }).join(','))
+    ]
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `QBR_report_${todayStr}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   function exportInstCSV(instName, engList, stakeList) {
     const rows = []
