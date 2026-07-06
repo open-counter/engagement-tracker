@@ -990,7 +990,7 @@ function MainApp({ session }) {
 
         {tab==='institutions'&&(
           <div style={{ display:'grid',gridTemplateColumns:isMobile?'1fr':'320px 1fr',height:isMobile?'auto':'calc(100vh - 112px)',overflow:isMobile?'visible':'hidden' }}>
-            <div style={{ borderRight:isMobile?'none':`1px solid ${C.border}`,borderBottom:isMobile?`1px solid ${C.border}`:'none',overflowY:'auto',background:C.white,maxHeight:isMobile?280:'none' }}>
+            <div style={{ borderRight:isMobile?'none':`1px solid ${C.border}`,borderBottom:isMobile?`1px solid ${C.border}`:'none',overflowY:'auto',background:C.white }}>
               <div style={{ padding:'14px 16px',borderBottom:`1px solid ${C.borderLight}`,display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,background:C.white,zIndex:10 }}>
                 <div style={{ fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:C.accent,fontFamily:FONT }}>Institutions</div>
                 <Btn label="+ Add" small accent onClick={()=>setShowInstForm(v=>!v)}/>
@@ -1052,15 +1052,16 @@ function MainApp({ session }) {
                 </div>
               })}
             </div>
-            <div style={{ overflowY:isMobile?'visible':'auto',background:C.bg }}>
+            <div style={{ overflowY:isMobile?'visible':'auto',background:C.bg,display:isMobile&&!selInst?'none':'block' }}>
               {!selInst?(
-                <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:C.light,fontSize:14,fontWeight:300,gap:8,fontFamily:FONT }}>
+                isMobile?null:<div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:C.light,fontSize:14,fontWeight:300,gap:8,fontFamily:FONT }}>
                   <div style={{ fontSize:40,color:'#ddd' }}>⌗</div>
                   <div>Select an institution</div>
                 </div>
               ):(
                 <>
-                  <div style={{ background:C.white,borderBottom:`1px solid ${C.border}`,padding:'20px 24px',position:'sticky',top:0,zIndex:10 }}>
+                  <div style={{ background:C.white,borderBottom:`1px solid ${C.border}`,padding:isMobile?'14px 16px':'20px 24px',position:'sticky',top:0,zIndex:10 }}>
+                    {isMobile&&<button onClick={()=>setSelInst(null)} style={{ background:'none',border:'none',fontSize:12,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT,padding:0,marginBottom:12 }}>← All institutions</button>}
                     <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12 }}>
                       <div style={{ flex:1,minWidth:0 }}>
                         {editingInstName
