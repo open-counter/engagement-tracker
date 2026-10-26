@@ -674,7 +674,7 @@ function WeeklyUpdate({ engs, todayStr, showToast, isMobile }) {
 
 
 // ── Outlook Tracker Inbox ───────────────────────────────────────────────────
-function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, isMobile }) {
+function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, onRefresh, isMobile }) {
   const [selected,setSelected]=React.useState(null)
   const [institution,setInstitution]=React.useState('')
   const [objective,setObjective]=React.useState('')
@@ -725,10 +725,10 @@ function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, 
     catch(err){console.error(err);setSaving(false)}
   }
 
-  if(!items.length)return <div style={{padding:isMobile?18:32,fontFamily:FONT}}><SectionHead label="Outlook Inbox"/><div style={{background:C.white,border:`1px solid ${C.borderLight}`,padding:28,textAlign:'center',color:C.mid}}>No flagged Outlook messages are waiting for review.</div></div>
+  if(!items.length)return <div style={{padding:isMobile?18:32,fontFamily:FONT}}><SectionHead label="Outlook Inbox" right={<Btn label="↻ Refresh" small ghost onClick={onRefresh}/>}/><div style={{background:C.white,border:`1px solid ${C.borderLight}`,padding:28,textAlign:'center',color:C.mid}}>No flagged Outlook messages are waiting for review.</div></div>
 
   return <div style={{padding:isMobile?14:24,fontFamily:FONT,maxWidth:1100}}>
-    <SectionHead label={`Outlook Inbox — ${items.length} to review`}/>
+    <SectionHead label={`Outlook Inbox — ${items.length} to review`} right={<Btn label="↻ Refresh" small ghost onClick={onRefresh}/>}/>
     <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'minmax(300px,420px) minmax(0,1fr)',gap:16}}>
       <div>{items.map(item=><button key={item.id} type="button" onClick={()=>openItem(item)} style={{display:'block',width:'100%',textAlign:'left',background:selected?.id===item.id?'#EEF7FC':C.white,border:`1px solid ${selected?.id===item.id?C.accent:C.borderLight}`,padding:14,marginBottom:8,cursor:'pointer',fontFamily:FONT}}>
         <div style={{fontSize:11,color:C.accent,fontWeight:700,textTransform:'uppercase',letterSpacing:1}}>{item.sender_name||item.sender_email}</div>
@@ -814,6 +814,23 @@ function MainApp({ session }) {
 
   function showToast(msg){setToast(msg);setTimeout(()=>setToast(''),2800)}
 
+  const refreshInbox = React.useCallback(async (quiet=false) => {
+    if(!currentUser?.id) return
+    const {data,error} = await supabase
+      .from('tracker_inbox')
+      .select('*')
+      .eq('user_id',currentUser.id)
+      .eq('status','new')
+      .order('received_at',{ascending:false})
+    if(error){
+      console.error('Inbox refresh failed:',error)
+      if(!quiet) showToast('Inbox refresh failed')
+      return
+    }
+    setInboxItems(data||[])
+    if(!quiet) showToast('✓ Inbox refreshed')
+  },[currentUser?.id])
+
   useEffect(()=>{
     async function load(){
       setLoading(true)
@@ -839,6 +856,32 @@ function MainApp({ session }) {
     }
     load()
   },[])
+
+  // Keep Outlook Inbox current while the tracker is open.
+  // Realtime reacts immediately when enabled for tracker_inbox; polling is a fallback.
+  useEffect(()=>{
+    if(!currentUser?.id) return
+    const channel=supabase
+      .channel(`tracker-inbox-${currentUser.id}`)
+      .on('postgres_changes',{event:'*',schema:'public',table:'tracker_inbox'},payload=>{
+        const row=payload.new||payload.old
+        if(row?.user_id===currentUser.id) refreshInbox(true)
+      })
+      .subscribe()
+
+    const interval=window.setInterval(()=>refreshInbox(true),15000)
+    const onFocus=()=>refreshInbox(true)
+    const onVisibility=()=>{if(document.visibilityState==='visible') refreshInbox(true)}
+    window.addEventListener('focus',onFocus)
+    document.addEventListener('visibilitychange',onVisibility)
+
+    return ()=>{
+      window.clearInterval(interval)
+      window.removeEventListener('focus',onFocus)
+      document.removeEventListener('visibilitychange',onVisibility)
+      supabase.removeChannel(channel)
+    }
+  },[currentUser?.id,refreshInbox])
 
   async function upsertEng(data,id){
     const row={...data,user_id:currentUser?.id,updated_at:new Date().toISOString()};if(id)row.id=id
@@ -1429,7 +1472,7 @@ function MainApp({ session }) {
         )}
 
         {tab==='weekly'&&<WeeklyUpdate engs={engs} todayStr={todayStr} showToast={showToast} isMobile={isMobile}/>}
-        {tab==='inbox'&&<OutlookInbox items={inboxItems} stakeholders={stakes} institutions={allInsts} onConvert={convertInboxItem} onIgnore={ignoreInboxItem} isMobile={isMobile}/>}
+        {tab==='inbox'&&<OutlookInbox items={inboxItems} stakeholders={stakes} institutions={allInsts} onConvert={convertInboxItem} onIgnore={ignoreInboxItem} onRefresh={()=>refreshInbox(false)} isMobile={isMobile}/>}
         {tab==='qbr'&&(()=>{
           // Last 90 days
           const cutoff=new Date();cutoff.setDate(cutoff.getDate()-90)
