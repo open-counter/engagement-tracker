@@ -27,6 +27,25 @@ function parseSender(value = '') {
   }
 }
 
+function cleanEmailText(value = '') {
+  let text = String(value)
+
+  // Remove common external-email warning inserted by Outlook/security tooling
+  text = text.replace(
+    /^EXTERNAL:\s*Use caution when clicking on links or opening attachments\.?\s*/i,
+    ''
+  )
+
+  // Normalise excess whitespace
+  text = text
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+
+  return text
+}
+
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
 export default async function handler(req, res) {
@@ -48,7 +67,8 @@ export default async function handler(req, res) {
 sender_email:
   sender.email ||
   String(message.senderEmail || '').trim().toLowerCase(), subject:message.subject||'',
-    received_at:message.receivedAt||new Date().toISOString(), body_preview:message.bodyPreview||'', body_text:message.bodyText||'',
+    received_at:message.receivedAt||new Date().toISOString(), body_preview: cleanEmailText(message.bodyPreview || ''),
+body_text: cleanEmailText(message.bodyText || message.bodyPreview || ''),
     source:'outlook', status:'new', updated_at:new Date().toISOString()
   }
   const { data, error } = await supabase.from('tracker_inbox').upsert(row,{onConflict:'user_id,outlook_message_id',ignoreDuplicates:true}).select('id,status').maybeSingle()
