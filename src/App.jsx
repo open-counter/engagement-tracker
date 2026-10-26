@@ -678,17 +678,59 @@ function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, 
   const [selected,setSelected]=React.useState(null)
   const [institution,setInstitution]=React.useState('')
   const [objective,setObjective]=React.useState('')
-  const openItem=(item)=>{
+  const [newStakeName,setNewStakeName]=React.useState('')
+  const [newStakeRole,setNewStakeRole]=React.useState('')
+  const [saving,setSaving]=React.useState(false)
+
+  const normaliseEmail=value=>String(value||'').trim().toLowerCase()
+  const findStakeholder=item=>stakeholders.find(s=>normaliseEmail(s.email)===normaliseEmail(item?.sender_email))||null
+  const matchedStakeholder=selected?findStakeholder(selected):null
+
+  const openItem=item=>{
+    const match=findStakeholder(item)
+    const suppliedName=String(item.sender_name||'').trim()
+    const suppliedEmail=normaliseEmail(item.sender_email)
     setSelected(item)
-    const match=stakeholders.find(s=>(s.email||'').toLowerCase()===(item.sender_email||'').toLowerCase())
     setInstitution(item.institution_guess||match?.institution||'')
-    setObjective(item.objective_guess||'')
+    setObjective(item.objective_guess||guessObjective(item.subject)||'')
+    setNewStakeName(match?.name||(suppliedName&&normaliseEmail(suppliedName)!==suppliedEmail?suppliedName:''))
+    setNewStakeRole(match?.role||'')
   }
+
+  const clearSelection=()=>{
+    setSelected(null)
+    setInstitution('')
+    setObjective('')
+    setNewStakeName('')
+    setNewStakeRole('')
+    setSaving(false)
+  }
+
+  const convert=async()=>{
+    if(!institution){alert('Choose an institution first');return}
+    if(!matchedStakeholder&&!newStakeName.trim()){alert('Enter the stakeholder name first');return}
+    setSaving(true)
+    try{
+      await onConvert(selected,institution,objective,{name:newStakeName.trim(),role:newStakeRole})
+      clearSelection()
+    }catch(err){
+      console.error(err)
+      setSaving(false)
+    }
+  }
+
+  const ignore=async()=>{
+    setSaving(true)
+    try{await onIgnore(selected);clearSelection()}
+    catch(err){console.error(err);setSaving(false)}
+  }
+
   if(!items.length)return <div style={{padding:isMobile?18:32,fontFamily:FONT}}><SectionHead label="Outlook Inbox"/><div style={{background:C.white,border:`1px solid ${C.borderLight}`,padding:28,textAlign:'center',color:C.mid}}>No flagged Outlook messages are waiting for review.</div></div>
+
   return <div style={{padding:isMobile?14:24,fontFamily:FONT,maxWidth:1100}}>
     <SectionHead label={`Outlook Inbox — ${items.length} to review`}/>
-    <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'minmax(300px,420px) 1fr',gap:16}}>
-      <div>{items.map(item=><button key={item.id} onClick={()=>openItem(item)} style={{display:'block',width:'100%',textAlign:'left',background:selected?.id===item.id?'#EEF7FC':C.white,border:`1px solid ${selected?.id===item.id?C.accent:C.borderLight}`,padding:14,marginBottom:8,cursor:'pointer',fontFamily:FONT}}>
+    <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'minmax(300px,420px) minmax(0,1fr)',gap:16}}>
+      <div>{items.map(item=><button key={item.id} type="button" onClick={()=>openItem(item)} style={{display:'block',width:'100%',textAlign:'left',background:selected?.id===item.id?'#EEF7FC':C.white,border:`1px solid ${selected?.id===item.id?C.accent:C.borderLight}`,padding:14,marginBottom:8,cursor:'pointer',fontFamily:FONT}}>
         <div style={{fontSize:11,color:C.accent,fontWeight:700,textTransform:'uppercase',letterSpacing:1}}>{item.sender_name||item.sender_email}</div>
         <div style={{fontSize:15,fontWeight:650,color:C.black,marginTop:5}}>{item.subject||'(No subject)'}</div>
         <div style={{fontSize:12,color:C.mid,marginTop:6,lineHeight:1.4}}>{(item.body_preview||item.body_text||'').slice(0,180)}</div>
@@ -697,15 +739,32 @@ function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, 
       <div>{selected?<div style={{background:C.white,border:`1px solid ${C.borderLight}`,padding:isMobile?16:22}}>
         <div style={{fontSize:11,color:C.accent,textTransform:'uppercase',fontWeight:700,letterSpacing:1.5}}>Review Outlook message</div>
         <h2 style={{fontSize:22,margin:'8px 0'}}>{selected.subject||'(No subject)'}</h2>
-        <div style={{fontSize:13,color:C.mid,marginBottom:16}}>{selected.sender_name||''} &lt;{selected.sender_email}&gt;</div>
+        <div style={{fontSize:13,color:C.mid,marginBottom:16,overflowWrap:'anywhere'}}>{selected.sender_name||''}{selected.sender_name&&selected.sender_email?' · ':''}{selected.sender_email}</div>
         <div style={{fontSize:13,lineHeight:1.55,whiteSpace:'pre-wrap',background:C.bg,padding:14,maxHeight:220,overflow:'auto'}}>{selected.body_text||selected.body_preview||''}</div>
+
+        <div style={{marginTop:16,padding:14,background:matchedStakeholder?'#F2FAF5':C.bg,border:`1px solid ${matchedStakeholder?C.green:C.borderLight}`}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:1.4,textTransform:'uppercase',color:matchedStakeholder?C.green:C.accent,marginBottom:10}}>{matchedStakeholder?'Existing stakeholder':'New stakeholder'}</div>
+          {matchedStakeholder?<>
+            <div style={{fontSize:15,fontWeight:700,color:C.black}}>{matchedStakeholder.name}</div>
+            <div style={{fontSize:12,color:C.mid,marginTop:3,overflowWrap:'anywhere'}}>{matchedStakeholder.email}</div>
+            <div style={{fontSize:11,color:C.light,marginTop:3}}>{matchedStakeholder.institution}{matchedStakeholder.role?` · ${matchedStakeholder.role}`:''}</div>
+          </>:<>
+            <FieldLabel>Name *</FieldLabel>
+            <input value={newStakeName} onChange={e=>setNewStakeName(e.target.value)} placeholder="Enter stakeholder name" style={{...inp,marginBottom:10}}/>
+            <FieldLabel>Email</FieldLabel>
+            <input value={selected.sender_email||''} readOnly style={{...inp,marginBottom:10,background:'#EFEFED',color:C.mid}}/>
+            <FieldLabel>Role</FieldLabel>
+            <select value={newStakeRole} onChange={e=>setNewStakeRole(e.target.value)} style={{...sel,marginBottom:0}}><option value="">Select role</option>{ROLES.map(role=><option key={role} value={role}>{role}</option>)}</select>
+          </>}
+        </div>
+
         <label style={{display:'block',fontSize:11,fontWeight:700,marginTop:16,marginBottom:5}}>Institution *</label>
-        <select value={institution} onChange={e=>setInstitution(e.target.value)} style={{...inp,marginBottom:12}}><option value="">Select institution</option>{institutions.map(i=><option key={i} value={i}>{i}</option>)}</select>
+        <select value={institution} onChange={e=>setInstitution(e.target.value)} style={{...sel,marginBottom:12}}><option value="">Select institution</option>{institutions.map(i=><option key={i} value={i}>{i}</option>)}</select>
         <label style={{display:'block',fontSize:11,fontWeight:700,marginBottom:5}}>Objective</label>
-        <select value={objective} onChange={e=>setObjective(e.target.value)} style={{...inp,marginBottom:16}}><option value="">Select objective</option>{OBJECTIVES.map(o=><option key={o} value={o}>{o}</option>)}</select>
+        <select value={objective} onChange={e=>setObjective(e.target.value)} style={{...sel,marginBottom:16}}><option value="">Select objective</option>{OBJECTIVES.map(o=><option key={o} value={o}>{o}</option>)}</select>
         <div style={{display:'flex',gap:8,justifyContent:'flex-end',flexWrap:'wrap'}}>
-          <Btn label="Ignore" ghost onClick={()=>{onIgnore(selected);setSelected(null)}}/>
-          <Btn label="Create engagement" accent onClick={()=>{if(!institution){alert('Choose an institution first');return}onConvert(selected,institution,objective);setSelected(null)}}/>
+          <Btn label="Ignore" ghost disabled={saving} onClick={ignore}/>
+          <Btn label={saving?'Saving…':'Create engagement'} accent disabled={saving} onClick={convert}/>
         </div>
       </div>:<div style={{background:C.white,border:`1px solid ${C.borderLight}`,padding:28,color:C.light,textAlign:'center'}}>Select a message to review it.</div>}</div>
     </div>
@@ -869,10 +928,20 @@ function MainApp({ session }) {
     setInboxItems(p=>p.filter(x=>x.id!==item.id));showToast('Message ignored')
   }
 
-  async function convertInboxItem(item,institution,objective){
+  async function convertInboxItem(item,institution,objective,stakeholderDetails={}){
     try{
-      let stake=stakes.find(s=>(s.email||'').toLowerCase()===(item.sender_email||'').toLowerCase())
-      if(!stake) stake=await upsertStake({name:item.sender_name||item.sender_email.split('@')[0],role:'',institution,email:item.sender_email,notes:'Added from Outlook Tracker Inbox'})
+      const senderEmail=String(item.sender_email||'').trim().toLowerCase()
+      let stake=stakes.find(s=>String(s.email||'').trim().toLowerCase()===senderEmail)
+      if(!stake){
+        const fallbackName=senderEmail.includes('@')?senderEmail.split('@')[0]:senderEmail
+        stake=await upsertStake({
+          name:stakeholderDetails.name?.trim()||item.sender_name||fallbackName||'Unknown sender',
+          role:stakeholderDetails.role||'',
+          institution,
+          email:senderEmail,
+          notes:'Added from Outlook Tracker Inbox'
+        })
+      }
       const saved=await upsertEng({
         synced_email_id:item.outlook_message_id,institution,stakeholder_id:stake.id,stakeholder_name:stake.name,
         date:(item.received_at||new Date().toISOString()).slice(0,10),type:'Email',objective:objective||'',status:'Follow-up needed',owner:userName,
@@ -881,7 +950,12 @@ function MainApp({ session }) {
       const {error}=await supabase.from('tracker_inbox').update({status:'converted',engagement_id:saved.id,updated_at:new Date().toISOString()}).eq('id',item.id).eq('user_id',currentUser.id)
       if(error) throw error
       setInboxItems(p=>p.filter(x=>x.id!==item.id));setInstOrder(p=>[...new Set([...p,institution])]);showToast('✓ Outlook email converted to engagement')
-    }catch(err){console.error(err);showToast(`Conversion failed: ${err.message||'unknown error'}`)}
+      return saved
+    }catch(err){
+      console.error(err)
+      showToast(`Conversion failed: ${err.message||'unknown error'}`)
+      throw err
+    }
   }
 
   async function sendToSharePoint(eng) {
