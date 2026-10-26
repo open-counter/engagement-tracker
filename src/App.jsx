@@ -395,7 +395,7 @@ function StakeholderForm({ initial, allInsts, onSave, onClose }) {
 }
 
 // ── Engagement card ─────────────────────────────────────────────────────────
-function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onSharePoint, compact }) {
+function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onReopen, onSharePoint, compact }) {
   const openActions = (eng.actions||[]).filter(a=>!a.done)
   const isClosed = eng.status==='Closed'
   const tagColor = isClosed ? '#aaa' : null
@@ -446,6 +446,7 @@ function EngCard({ eng, stake, onEdit, onDelete, onToggleAction, onClose, onShar
     </div>}
     <div style={{ display:'flex',justifyContent:'flex-end',gap:14,marginTop:10,paddingTop:10,borderTop:`0.5px solid ${C.borderLight}` }}>
       {!isClosed&&<button onClick={()=>onClose(eng.id)} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.green,cursor:'pointer',fontFamily:FONT }}>✓ Close</button>}
+      {isClosed&&onReopen&&<button onClick={()=>onReopen(eng.id)} style={{ background:'none',border:'none',fontSize:11,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT }}>↺ Reopen</button>}
       {!isClosed&&<button onClick={()=>{
         const subject=encodeURIComponent(eng.event_title||`Follow-up: ${eng.institution}`)
         const openA=(eng.actions||[]).filter(a=>!a.done)
@@ -568,6 +569,149 @@ function InstProfile({ name, data, showEdit, onToggleEdit, onSave }) {
   )
 }
 
+
+// ── Weekly Update ───────────────────────────────────────────────────────────
+function WeeklyUpdate({ engs, todayStr, showToast, isMobile }) {
+  const mondayOf = (value) => {
+    const d = new Date(value + 'T12:00:00')
+    const day = d.getDay()
+    const offset = day === 0 ? -6 : 1 - day
+    d.setDate(d.getDate() + offset)
+    return d.toISOString().slice(0,10)
+  }
+  const addDays = (value, count) => {
+    const d = new Date(value + 'T12:00:00')
+    d.setDate(d.getDate() + count)
+    return d.toISOString().slice(0,10)
+  }
+  const [weekStart,setWeekStart] = React.useState(mondayOf(todayStr))
+  const [editedText,setEditedText] = React.useState('')
+  const weekEnd = addDays(weekStart,6)
+  const nextWeekEnd = addDays(weekEnd,7)
+
+  const thisWeek = engs
+    .filter(e => e.date >= weekStart && e.date <= weekEnd)
+    .slice().sort((a,b) => a.date.localeCompare(b.date))
+  const nextWeek = engs
+    .filter(e => e.date > weekEnd && e.date <= nextWeekEnd)
+    .slice().sort((a,b) => a.date.localeCompare(b.date))
+  const openActions = engs.flatMap(e => (e.actions || [])
+    .filter(a => !a.done)
+    .map(a => ({...a,institution:e.institution,engagementDate:e.date})))
+  const dueNextWeek = openActions
+    .filter(a => a.due_date && a.due_date > weekEnd && a.due_date <= nextWeekEnd)
+    .sort((a,b) => a.due_date.localeCompare(b.due_date))
+  const overdue = openActions
+    .filter(a => a.due_date && a.due_date < todayStr)
+    .sort((a,b) => a.due_date.localeCompare(b.due_date))
+  const followUps = engs.filter(e => e.status === 'Follow-up needed' || e.status === 'On hold')
+
+  const grouped = thisWeek.reduce((acc,e) => {
+    if(!acc[e.institution]) acc[e.institution] = []
+    acc[e.institution].push(e)
+    return acc
+  },{})
+
+  function clean(value){ return String(value || '').replace(/\s+/g,' ').trim() }
+  function engagementLine(e){
+    const title = clean(e.event_title) || `${e.type || 'Engagement'} with ${e.stakeholder_name || 'customer'}`
+    const detail = clean(e.outcome_summary) || clean(e.notes)
+    return `- ${title}${detail ? `: ${detail}` : ''}`
+  }
+  function buildUpdate(){
+    const lines = []
+    lines.push(`WEEKLY UPDATE | ${weekStart} to ${weekEnd}`)
+    lines.push('')
+    lines.push('CUSTOMER ACTIVITY AND OUTCOMES')
+    if(Object.keys(grouped).length === 0) lines.push('- No customer engagements recorded for this period.')
+    Object.entries(grouped).forEach(([institution,items]) => {
+      lines.push(`- ${institution}`)
+      items.forEach(e => lines.push(`  ${engagementLine(e)}`))
+    })
+    lines.push('')
+    lines.push('NEXT WEEK')
+    if(nextWeek.length === 0 && dueNextWeek.length === 0) lines.push('- No planned engagements or dated actions recorded.')
+    nextWeek.forEach(e => lines.push(`- ${e.date} | ${e.institution} | ${clean(e.event_title) || e.type}`))
+    dueNextWeek.forEach(a => lines.push(`- ${a.due_date} | ${a.institution} | ${clean(a.text)}`))
+    lines.push('')
+    lines.push('RISKS / BLOCKERS')
+    if(overdue.length === 0 && followUps.length === 0) lines.push('- No recorded risks or overdue actions.')
+    overdue.forEach(a => lines.push(`- OVERDUE ${a.due_date} | ${a.institution} | ${clean(a.text)}`))
+    followUps.slice(0,10).forEach(e => lines.push(`- ${e.institution} | ${e.status} | ${clean(e.event_title) || clean(e.notes) || e.type}`))
+    lines.push('')
+    lines.push('SUPPORT REQUIRED')
+    const support = thisWeek.filter(e => clean(e.support_required))
+    if(support.length === 0) lines.push('- None recorded.')
+    support.forEach(e => lines.push(`- ${e.institution} | ${clean(e.support_required)}`))
+    return lines.join('\n')
+  }
+
+  React.useEffect(() => { setEditedText(buildUpdate()) }, [weekStart, engs])
+  async function copyText(){
+    try { await navigator.clipboard.writeText(editedText); showToast('✓ Weekly update copied for Loop') }
+    catch { showToast('Copy failed — select the text manually') }
+  }
+
+  return <div style={{ padding:isMobile?'16px':'20px 24px',maxWidth:1000 }}>
+    <div style={{ display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:12,flexWrap:'wrap',marginBottom:18 }}>
+      <div>
+        <div style={{ fontSize:20,fontWeight:700,color:C.black,fontFamily:FONT }}>Weekly Update</div>
+        <div style={{ fontSize:12,color:C.light,marginTop:3,fontFamily:FONT }}>Generate an editable Loop-ready summary from tracker data.</div>
+      </div>
+      <div style={{ display:'flex',alignItems:'flex-end',gap:8,flexWrap:'wrap' }}>
+        <div><FieldLabel>Week commencing</FieldLabel><input type="date" style={{...inp,marginBottom:0,width:165}} value={weekStart} onChange={e=>setWeekStart(mondayOf(e.target.value))}/></div>
+        <Btn label="Copy for Loop" accent onClick={copyText}/>
+      </div>
+    </div>
+    <div style={{ display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:1,background:C.border,border:`0.5px solid ${C.border}`,marginBottom:18 }}>
+      {[{v:thisWeek.length,l:'This week',c:C.accent},{v:nextWeek.length,l:'Next week'},{v:overdue.length,l:'Overdue actions',c:C.red},{v:followUps.length,l:'Follow-up / on hold',c:C.amber}].map(({v,l,c})=><div key={l} style={{background:C.white,padding:'14px 16px'}}><div style={{fontSize:28,fontWeight:700,color:c||C.black,lineHeight:1}}>{v}</div><div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',color:C.light,marginTop:4}}>{l}</div></div>)}
+    </div>
+    <SectionHead label="Loop-ready draft" right={<Btn label="Regenerate" small ghost onClick={()=>setEditedText(buildUpdate())}/>}/>
+    <textarea aria-label="Weekly update draft" style={{...tex,minHeight:520,lineHeight:1.55,fontFamily:'ui-monospace, SFMono-Regular, Menlo, monospace',fontSize:13}} value={editedText} onChange={e=>setEditedText(e.target.value)}/>
+    <div style={{fontSize:11,color:C.light,lineHeight:1.5}}>This draft uses recorded engagement titles, notes, actions, dates and statuses. Edit it before pasting into Loop, especially where notes are lengthy or contain internal detail.</div>
+  </div>
+}
+
+
+// ── Outlook Tracker Inbox ───────────────────────────────────────────────────
+function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, isMobile }) {
+  const [selected,setSelected]=React.useState(null)
+  const [institution,setInstitution]=React.useState('')
+  const [objective,setObjective]=React.useState('')
+  const openItem=(item)=>{
+    setSelected(item)
+    const match=stakeholders.find(s=>(s.email||'').toLowerCase()===(item.sender_email||'').toLowerCase())
+    setInstitution(item.institution_guess||match?.institution||'')
+    setObjective(item.objective_guess||'')
+  }
+  if(!items.length)return <div style={{padding:isMobile?18:32,fontFamily:FONT}}><SectionHead label="Outlook Inbox"/><div style={{background:C.white,border:`1px solid ${C.borderLight}`,padding:28,textAlign:'center',color:C.mid}}>No flagged Outlook messages are waiting for review.</div></div>
+  return <div style={{padding:isMobile?14:24,fontFamily:FONT,maxWidth:1100}}>
+    <SectionHead label={`Outlook Inbox — ${items.length} to review`}/>
+    <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'minmax(300px,420px) 1fr',gap:16}}>
+      <div>{items.map(item=><button key={item.id} onClick={()=>openItem(item)} style={{display:'block',width:'100%',textAlign:'left',background:selected?.id===item.id?'#EEF7FC':C.white,border:`1px solid ${selected?.id===item.id?C.accent:C.borderLight}`,padding:14,marginBottom:8,cursor:'pointer',fontFamily:FONT}}>
+        <div style={{fontSize:11,color:C.accent,fontWeight:700,textTransform:'uppercase',letterSpacing:1}}>{item.sender_name||item.sender_email}</div>
+        <div style={{fontSize:15,fontWeight:650,color:C.black,marginTop:5}}>{item.subject||'(No subject)'}</div>
+        <div style={{fontSize:12,color:C.mid,marginTop:6,lineHeight:1.4}}>{(item.body_preview||item.body_text||'').slice(0,180)}</div>
+        <div style={{fontSize:10,color:C.light,marginTop:8}}>{item.received_at?new Date(item.received_at).toLocaleString():''}</div>
+      </button>)}</div>
+      <div>{selected?<div style={{background:C.white,border:`1px solid ${C.borderLight}`,padding:isMobile?16:22}}>
+        <div style={{fontSize:11,color:C.accent,textTransform:'uppercase',fontWeight:700,letterSpacing:1.5}}>Review Outlook message</div>
+        <h2 style={{fontSize:22,margin:'8px 0'}}>{selected.subject||'(No subject)'}</h2>
+        <div style={{fontSize:13,color:C.mid,marginBottom:16}}>{selected.sender_name||''} &lt;{selected.sender_email}&gt;</div>
+        <div style={{fontSize:13,lineHeight:1.55,whiteSpace:'pre-wrap',background:C.bg,padding:14,maxHeight:220,overflow:'auto'}}>{selected.body_text||selected.body_preview||''}</div>
+        <label style={{display:'block',fontSize:11,fontWeight:700,marginTop:16,marginBottom:5}}>Institution *</label>
+        <select value={institution} onChange={e=>setInstitution(e.target.value)} style={{...inp,marginBottom:12}}><option value="">Select institution</option>{institutions.map(i=><option key={i} value={i}>{i}</option>)}</select>
+        <label style={{display:'block',fontSize:11,fontWeight:700,marginBottom:5}}>Objective</label>
+        <select value={objective} onChange={e=>setObjective(e.target.value)} style={{...inp,marginBottom:16}}><option value="">Select objective</option>{OBJECTIVES.map(o=><option key={o} value={o}>{o}</option>)}</select>
+        <div style={{display:'flex',gap:8,justifyContent:'flex-end',flexWrap:'wrap'}}>
+          <Btn label="Ignore" ghost onClick={()=>{onIgnore(selected);setSelected(null)}}/>
+          <Btn label="Create engagement" accent onClick={()=>{if(!institution){alert('Choose an institution first');return}onConvert(selected,institution,objective);setSelected(null)}}/>
+        </div>
+      </div>:<div style={{background:C.white,border:`1px solid ${C.borderLight}`,padding:28,color:C.light,textAlign:'center'}}>Select a message to review it.</div>}</div>
+    </div>
+  </div>
+}
+
 // ── MainApp ─────────────────────────────────────────────────────────────────
 function MainApp({ session }) {
   const currentUser = session?.user
@@ -576,6 +720,7 @@ function MainApp({ session }) {
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth < 768
   const [engs,setEngs]             = useState([])
+  const [inboxItems,setInboxItems]   = useState([])
   const [instData,setInstData]     = useState({})
   const [stakes,setStakes]         = useState([])
   const [instOrder,setInstOrder]   = useState([])
@@ -613,14 +758,15 @@ function MainApp({ session }) {
   useEffect(()=>{
     async function load(){
       setLoading(true)
-      const [{data:eRows},{data:sRows},{data:mRow},{data:iRows}] = await Promise.all([
+      const [{data:eRows},{data:sRows},{data:mRow},{data:iRows},{data:inboxRows}] = await Promise.all([
         supabase.from('engagements').select('*').eq('user_id',currentUser?.id||'').order('date',{ascending:false}),
         supabase.from('stakeholders').select('*').order('name'),
         supabase.from('et_meta').select('*').eq('id','singleton').single(),
         supabase.from('institutions').select('*'),
+        supabase.from('tracker_inbox').select('*').eq('user_id',currentUser?.id||'').eq('status','new').order('received_at',{ascending:false}),
       ])
       const e=eRows||[],s=sRows||[]
-      setEngs(e);setStakes(s)
+      setEngs(e);setStakes(s);setInboxItems(inboxRows||[])
       const allInstNames=[...new Set(e.map(x=>x.institution).concat(s.map(x=>x.institution)).filter(Boolean))]
       const savedOrder=mRow?.inst_order||[]
       const merged=[...savedOrder.filter(n=>allInstNames.includes(n)),...allInstNames.filter(n=>!savedOrder.includes(n))]
@@ -715,6 +861,27 @@ function MainApp({ session }) {
       showToast(added>0?`✓ ${added} new engagement${added!==1?'s':''} added`:'✓ Already up to date')
     }catch(err){console.error(err);showToast('Sync failed')}
     finally{setSyncing(false)}
+  }
+
+  async function ignoreInboxItem(item){
+    const {error}=await supabase.from('tracker_inbox').update({status:'ignored',updated_at:new Date().toISOString()}).eq('id',item.id).eq('user_id',currentUser.id)
+    if(error){showToast(`Ignore failed: ${error.message}`);return}
+    setInboxItems(p=>p.filter(x=>x.id!==item.id));showToast('Message ignored')
+  }
+
+  async function convertInboxItem(item,institution,objective){
+    try{
+      let stake=stakes.find(s=>(s.email||'').toLowerCase()===(item.sender_email||'').toLowerCase())
+      if(!stake) stake=await upsertStake({name:item.sender_name||item.sender_email.split('@')[0],role:'',institution,email:item.sender_email,notes:'Added from Outlook Tracker Inbox'})
+      const saved=await upsertEng({
+        synced_email_id:item.outlook_message_id,institution,stakeholder_id:stake.id,stakeholder_name:stake.name,
+        date:(item.received_at||new Date().toISOString()).slice(0,10),type:'Email',objective:objective||'',status:'Follow-up needed',owner:userName,
+        event_title:item.subject||'Outlook email',notes:item.body_text||item.body_preview||'',actions:[]
+      })
+      const {error}=await supabase.from('tracker_inbox').update({status:'converted',engagement_id:saved.id,updated_at:new Date().toISOString()}).eq('id',item.id).eq('user_id',currentUser.id)
+      if(error) throw error
+      setInboxItems(p=>p.filter(x=>x.id!==item.id));setInstOrder(p=>[...new Set([...p,institution])]);showToast('✓ Outlook email converted to engagement')
+    }catch(err){console.error(err);showToast(`Conversion failed: ${err.message||'unknown error'}`)}
   }
 
   async function sendToSharePoint(eng) {
@@ -842,6 +1009,15 @@ function MainApp({ session }) {
     setEngs(p=>p.map(e=>e.id===engId?{...e,status:'Closed',actions:closedActions}:e))
     showToast('✓ Engagement closed')
   }
+  async function reopenEng(engId){
+    const reopenActions=window.confirm('Reopen the actions on this engagement too?\n\nOK = reopen actions as outstanding\nCancel = keep actions marked done')
+    const eng=engs.find(e=>e.id===engId)
+    let newActions=(eng?.actions||[])
+    if(reopenActions) newActions=newActions.map(a=>({...a,done:false,completed_at:''}))
+    await supabase.from('engagements').update({status:'Active',actions:newActions}).eq('id',engId)
+    setEngs(p=>p.map(e=>e.id===engId?{...e,status:'Active',actions:newActions}:e))
+    showToast('↺ Engagement reopened')
+  }
   async function addInstitution(){
     const name=newInstName.trim()
     if(!name)return
@@ -854,7 +1030,7 @@ function MainApp({ session }) {
     setSelInst(name);showToast(`✓ ${name} added`)
   }
 
-  const tabs=[{id:'overview',label:'Overview'},{id:'institutions',label:'Institutions'},{id:'qbr',label:'QBR'},{id:'stakeholders',label:'Stakeholders'}]
+  const tabs=[{id:'overview',label:'Overview'},{id:'institutions',label:'Institutions'},{id:'weekly',label:'Weekly Update'},{id:'qbr',label:'QBR'},{id:'stakeholders',label:'Stakeholders'},{id:'inbox',label:`Inbox${inboxItems.length?` (${inboxItems.length})`:''}`}]
 
   if(loading)return(
     <div style={{ fontFamily:FONT,background:C.black,minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:12 }}>
@@ -896,7 +1072,7 @@ function MainApp({ session }) {
             {stakes.length} stakeholder{stakes.length!==1?'s':''}
           </div>
           <div style={{ display:'flex',alignItems:'flex-end',width:'100%' }}>
-            {tabs.map((t,i)=><button key={t.id} onClick={()=>setTab(t.id)} style={{ padding:'10px 0',marginRight:i<2?32:0,marginLeft:i===3?'auto':0,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:tab===t.id?C.white:C.accent,background:'transparent',border:'none',borderBottom:tab===t.id?`2px solid ${C.accent}`:'2px solid transparent',marginBottom:-1,cursor:'pointer',fontFamily:FONT }}>{t.label}</button>)}
+            {tabs.map((t,i)=><button key={t.id} onClick={()=>setTab(t.id)} style={{ padding:'10px 0',marginRight:i<5?20:0,marginLeft:0,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:tab===t.id?C.white:C.accent,background:'transparent',border:'none',borderBottom:tab===t.id?`2px solid ${C.accent}`:'2px solid transparent',marginBottom:-1,cursor:'pointer',fontFamily:FONT }}>{t.label}</button>)}
           </div>
         </div>
       </div>
@@ -982,7 +1158,7 @@ function MainApp({ session }) {
                 <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)}
                   onEdit={()=>{setEditEngId(e.id);setEngModal(e)}}
                   onDelete={()=>{if(window.confirm('Delete?'))deleteEng(e.id)}}
-                  onToggleAction={toggleAction} onClose={closeEng} onSharePoint={sendToSharePoint}/>
+                  onToggleAction={toggleAction} onClose={closeEng} onReopen={reopenEng} onSharePoint={sendToSharePoint}/>
               ))}
             </div>
           </div>
@@ -1126,6 +1302,10 @@ function MainApp({ session }) {
                       <SectionHead label="Stakeholders" right={
                         <div style={{ display:'flex',alignItems:'center',gap:10 }}>
                           <span style={{ fontSize:11,fontWeight:300,color:C.light }}>{instStakes.length}</span>
+                          {instStakes.filter(s=>s.email).length>0&&<button onClick={()=>{
+                            const emails=instStakes.filter(s=>s.email).map(s=>s.email).join('; ')
+                            navigator.clipboard.writeText(emails).then(()=>showToast(`✓ ${instStakes.filter(s=>s.email).length} emails copied`)).catch(()=>showToast('Copy failed'))
+                          }} style={{ background:'none',border:`1px solid ${C.accent}`,fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',color:C.accent,cursor:'pointer',fontFamily:FONT,padding:'3px 8px' }}>✉ Copy emails</button>}
                           <button onClick={()=>setStakesOpen(v=>!v)} style={{ background:'none',border:'none',fontSize:13,cursor:'pointer',color:C.light,lineHeight:1,padding:0,fontFamily:FONT }}>{stakesOpen?'▲':'▼'}</button>
                         </div>
                       }/>
@@ -1155,7 +1335,7 @@ function MainApp({ session }) {
                       <EngCard key={e.id} eng={e} stake={stakes.find(s=>s.id===e.stakeholder_id)} compact
                         onEdit={()=>{setEditEngId(e.id);setEngModal(e)}}
                         onDelete={()=>{if(window.confirm('Delete?'))deleteEng(e.id)}}
-                        onToggleAction={toggleAction} onClose={closeEng} onSharePoint={sendToSharePoint}/>
+                        onToggleAction={toggleAction} onClose={closeEng} onReopen={reopenEng} onSharePoint={sendToSharePoint}/>
                     )):<div style={{ fontSize:13,color:C.light,padding:'8px 0',fontFamily:FONT }}>None yet — click "+ Engagement" above.</div>)}
                     {/* Activity Timeline */}
                     <div style={{ marginTop:24 }}>
@@ -1174,6 +1354,8 @@ function MainApp({ session }) {
           </div>
         )}
 
+        {tab==='weekly'&&<WeeklyUpdate engs={engs} todayStr={todayStr} showToast={showToast} isMobile={isMobile}/>}
+        {tab==='inbox'&&<OutlookInbox items={inboxItems} stakeholders={stakes} institutions={allInsts} onConvert={convertInboxItem} onIgnore={ignoreInboxItem} isMobile={isMobile}/>}
         {tab==='qbr'&&(()=>{
           // Last 90 days
           const cutoff=new Date();cutoff.setDate(cutoff.getDate()-90)
@@ -1385,8 +1567,18 @@ function MainApp({ session }) {
     URL.revokeObjectURL(url)
   }
 
+  function loadXLSX(){
+    return new Promise((resolve,reject)=>{
+      if(window.XLSX){resolve(window.XLSX);return}
+      const script=document.createElement('script')
+      script.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js'
+      script.onload=()=>window.XLSX?resolve(window.XLSX):reject(new Error('XLSX failed to initialise'))
+      script.onerror=()=>reject(new Error('Could not load spreadsheet library — check your connection'))
+      document.head.appendChild(script)
+    })
+  }
   function exportXLSX(){
-    import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js').then(XLSX=>{
+    loadXLSX().then(XLSX=>{
       const wb=XLSX.utils.book_new(),rows=[]
       engs.forEach(e=>{
         const s=stakes.find(x=>x.id===e.stakeholder_id)
@@ -1410,6 +1602,10 @@ function MainApp({ session }) {
       XLSX.utils.book_append_sheet(wb,'Summary by institution',ws2)
       if(stakes.length){const ws3=XLSX.utils.json_to_sheet(stakes.map(s=>({Name:s.name,Role:s.role||'',Institution:s.institution||'',Email:s.email||'',Engagements:engs.filter(e=>e.stakeholder_id===s.id).length})));ws3['!cols']=[22,20,24,28,14].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,'Stakeholders',ws3)}
       XLSX.writeFile(wb,'engagements_export.xlsx')
+      showToast('✓ Export downloaded')
+    }).catch(err=>{
+      console.error('Export failed:',err)
+      showToast('Export failed — '+err.message)
     })
   }
 }
