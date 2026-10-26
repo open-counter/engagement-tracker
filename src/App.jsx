@@ -680,6 +680,10 @@ function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, 
   const [objective,setObjective]=React.useState('')
   const [newStakeName,setNewStakeName]=React.useState('')
   const [newStakeRole,setNewStakeRole]=React.useState('')
+  const [createFollowUp,setCreateFollowUp]=React.useState(false)
+  const [followUpText,setFollowUpText]=React.useState('')
+  const [followUpDue,setFollowUpDue]=React.useState('')
+  const [followUpPriority,setFollowUpPriority]=React.useState('Medium')
   const [saving,setSaving]=React.useState(false)
 
   const normaliseEmail=value=>String(value||'').trim().toLowerCase()
@@ -691,10 +695,14 @@ function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, 
     const suppliedName=String(item.sender_name||'').trim()
     const suppliedEmail=normaliseEmail(item.sender_email)
     setSelected(item)
-    setInstitution(item.institution_guess||match?.institution||'')
+    setInstitution(item.institution_guess||match?.institution||getInstitution(suppliedEmail)||'')
     setObjective(item.objective_guess||guessObjective(item.subject)||'')
     setNewStakeName(match?.name||(suppliedName&&normaliseEmail(suppliedName)!==suppliedEmail?suppliedName:''))
     setNewStakeRole(match?.role||'')
+    setCreateFollowUp(false)
+    setFollowUpText('')
+    setFollowUpDue('')
+    setFollowUpPriority('Medium')
   }
 
   const clearSelection=()=>{
@@ -703,6 +711,10 @@ function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, 
     setObjective('')
     setNewStakeName('')
     setNewStakeRole('')
+    setCreateFollowUp(false)
+    setFollowUpText('')
+    setFollowUpDue('')
+    setFollowUpPriority('Medium')
     setSaving(false)
   }
 
@@ -711,7 +723,14 @@ function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, 
     if(!matchedStakeholder&&!newStakeName.trim()){alert('Enter the stakeholder name first');return}
     setSaving(true)
     try{
-      await onConvert(selected,institution,objective,{name:newStakeName.trim(),role:newStakeRole})
+      if(createFollowUp&&!followUpText.trim()){alert('Enter the follow-up action first');setSaving(false);return}
+      await onConvert(
+        selected,
+        institution,
+        objective,
+        {name:newStakeName.trim(),role:newStakeRole},
+        createFollowUp?{text:followUpText.trim(),due_date:followUpDue,priority:followUpPriority}:null
+      )
       clearSelection()
     }catch(err){
       console.error(err)
@@ -762,6 +781,20 @@ function OutlookInbox({ items, stakeholders, institutions, onConvert, onIgnore, 
         <select value={institution} onChange={e=>setInstitution(e.target.value)} style={{...sel,marginBottom:12}}><option value="">Select institution</option>{institutions.map(i=><option key={i} value={i}>{i}</option>)}</select>
         <label style={{display:'block',fontSize:11,fontWeight:700,marginBottom:5}}>Objective</label>
         <select value={objective} onChange={e=>setObjective(e.target.value)} style={{...sel,marginBottom:16}}><option value="">Select objective</option>{OBJECTIVES.map(o=><option key={o} value={o}>{o}</option>)}</select>
+        <div style={{marginBottom:16,padding:14,border:`1px solid ${createFollowUp?C.amber:C.borderLight}`,background:createFollowUp?'#FFF8E1':C.white}}>
+          <label style={{display:'flex',alignItems:'center',gap:8,fontSize:12,fontWeight:700,color:C.black,cursor:'pointer'}}>
+            <input type="checkbox" checked={createFollowUp} onChange={e=>setCreateFollowUp(e.target.checked)} style={{width:16,height:16}}/>
+            Create a follow-up action with this engagement
+          </label>
+          {createFollowUp&&<div style={{marginTop:12}}>
+            <FieldLabel>Follow-up action *</FieldLabel>
+            <input value={followUpText} onChange={e=>setFollowUpText(e.target.value)} placeholder="e.g. Send workshop dates" style={inp}/>
+            <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'1fr 150px',gap:10}}>
+              <div><FieldLabel>Due date</FieldLabel><input type="date" value={followUpDue} onChange={e=>setFollowUpDue(e.target.value)} style={{...inp,marginBottom:0}}/></div>
+              <div><FieldLabel>Priority</FieldLabel><select value={followUpPriority} onChange={e=>setFollowUpPriority(e.target.value)} style={{...sel,marginBottom:0}}>{PRIORITIES.map(p=><option key={p} value={p}>{p}</option>)}</select></div>
+            </div>
+          </div>}
+        </div>
         <div style={{display:'flex',gap:8,justifyContent:'flex-end',flexWrap:'wrap'}}>
           <Btn label="Ignore" ghost disabled={saving} onClick={ignore}/>
           <Btn label={saving?'Saving…':'Create engagement'} accent disabled={saving} onClick={convert}/>
@@ -971,7 +1004,7 @@ function MainApp({ session }) {
     setInboxItems(p=>p.filter(x=>x.id!==item.id));showToast('Message ignored')
   }
 
-  async function convertInboxItem(item,institution,objective,stakeholderDetails={}){
+  async function convertInboxItem(item,institution,objective,stakeholderDetails={},followUpAction=null){
     try{
       const senderEmail=String(item.sender_email||'').trim().toLowerCase()
       let stake=stakes.find(s=>String(s.email||'').trim().toLowerCase()===senderEmail)
@@ -988,7 +1021,9 @@ function MainApp({ session }) {
       const saved=await upsertEng({
         synced_email_id:item.outlook_message_id,institution,stakeholder_id:stake.id,stakeholder_name:stake.name,
         date:(item.received_at||new Date().toISOString()).slice(0,10),type:'Email',objective:objective||'',status:'Follow-up needed',owner:userName,
-        event_title:item.subject||'Outlook email',notes:item.body_text||item.body_preview||'',actions:[]
+        event_title:item.subject||'Outlook email',notes:item.body_text||item.body_preview||'',actions:followUpAction?[{
+          id:Date.now().toString(),text:followUpAction.text,priority:followUpAction.priority||'Medium',done:false,due_date:followUpAction.due_date||'',completed_at:''
+        }]:[]
       })
       const {error}=await supabase.from('tracker_inbox').update({status:'converted',engagement_id:saved.id,updated_at:new Date().toISOString()}).eq('id',item.id).eq('user_id',currentUser.id)
       if(error) throw error
